@@ -109,25 +109,18 @@ export function ChatSection({
     sendMessage({ text: message.text });
   };
 
-  // Calculate cumulative usage from message metadata
-  const cumulativeUsage = messages.reduce(
-    (acc, msg) => {
-      const usage = (msg as { metadata?: { usage?: TokenUsage } }).metadata
-        ?.usage;
-      if (usage) {
-        return {
-          inputTokens: acc.inputTokens + (usage.inputTokens || 0),
-          outputTokens: acc.outputTokens + (usage.outputTokens || 0),
-          totalTokens: acc.totalTokens + (usage.totalTokens || 0),
-        };
-      }
-      return acc;
-    },
-    { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
-  );
+  // Get usage from the latest assistant message
+  const latestUsage = [...messages]
+    .reverse()
+    .find(
+      (msg) =>
+        msg.role === "assistant" &&
+        (msg as { metadata?: { usage?: TokenUsage } }).metadata?.usage,
+    );
+  const lastUsage = (latestUsage as { metadata?: { usage?: TokenUsage } })
+    ?.metadata?.usage;
 
-  const displayUsage =
-    tokenUsage || (cumulativeUsage.totalTokens > 0 ? cumulativeUsage : null);
+  const displayUsage = tokenUsage || lastUsage || null;
 
   return (
     <div className="flex h-[80vh] flex-col gap-4">
@@ -157,26 +150,37 @@ export function ChatSection({
                       <p>{text}</p>
                     ) : (
                       <>
-                        {toolParts.map((tool) => (
-                          <div
-                            key={tool.toolCallId}
-                            className="flex items-center gap-2 text-sm text-muted-foreground mb-2 px-2 py-1 bg-muted/50 rounded"
-                          >
-                            <FileIcon className="size-3" />
-                            <span>
-                              Write file:{" "}
-                              {String(tool.input?.file_path || "unknown")}
-                            </span>
-                            {tool.state === "output-available" && (
-                              <span className="text-xs text-primary">Done</span>
-                            )}
-                            {tool.state === "input-streaming" && (
-                              <span className="text-xs text-muted-foreground">
-                                ...
+                        {toolParts.map((tool) => {
+                          const toolName = tool.type.replace("tool-", "");
+                          const label =
+                            toolName === "write_file"
+                              ? "Write file"
+                              : toolName === "edit_file"
+                                ? "Edit file"
+                                : toolName;
+                          return (
+                            <div
+                              key={tool.toolCallId}
+                              className="flex items-center gap-2 text-sm text-muted-foreground mb-2 px-2 py-1 bg-muted/50 rounded"
+                            >
+                              <FileIcon className="size-3" />
+                              <span>
+                                {label}:{" "}
+                                {String(tool.input?.file_path || "unknown")}
                               </span>
-                            )}
-                          </div>
-                        ))}
+                              {tool.state === "output-available" && (
+                                <span className="text-xs text-primary">
+                                  Done
+                                </span>
+                              )}
+                              {tool.state === "input-streaming" && (
+                                <span className="text-xs text-muted-foreground">
+                                  ...
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
                         {text && <MessageResponse>{text}</MessageResponse>}
                       </>
                     )}

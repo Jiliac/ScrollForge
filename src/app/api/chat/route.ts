@@ -64,11 +64,16 @@ export async function POST(req: Request) {
 
   const { system, context } = await loadGameContext();
 
-  const systemPrompt = system
-    ? `${system}\n\n# Game Context\n\n${context}`
-    : context
-      ? `# Game Context\n\n${context}`
-      : undefined;
+  // Prepend context as a user message if we have any
+  const contextMessage: UIMessage | null = context
+    ? {
+        id: "game-context",
+        role: "user",
+        parts: [{ type: "text", text: `# Game Context\n\n${context}` }],
+      }
+    : null;
+
+  const allMessages = contextMessage ? [contextMessage, ...messages] : messages;
 
   const writeFileTool = tool({
     description:
@@ -88,11 +93,46 @@ export async function POST(req: Request) {
     },
   });
 
+  const editFileTool = tool({
+    description:
+      "Edit a file by replacing a unique string with new content. The old_string must appear exactly once in the file.",
+    inputSchema: z.object({
+      file_path: z
+        .string()
+        .describe("Relative path within game files (e.g., 'npcs/merchant.md')"),
+      old_string: z
+        .string()
+        .describe("Exact text to find and replace (must be unique in file)"),
+      new_string: z.string().describe("Text to replace it with"),
+    }),
+    execute: async ({ file_path, old_string, new_string }) => {
+      const gameFilesDir = getGameFilesDir();
+      const fullPath = path.join(gameFilesDir, file_path);
+
+      const content = await fs.readFile(fullPath, "utf-8");
+      const occurrences = content.split(old_string).length - 1;
+
+      if (occurrences === 0) {
+        return { success: false, error: "old_string not found in file" };
+      }
+      if (occurrences > 1) {
+        return {
+          success: false,
+          error: `old_string appears ${occurrences} times, must be unique`,
+        };
+      }
+
+      const newContent = content.replace(old_string, new_string);
+      await fs.writeFile(fullPath, newContent, "utf-8");
+      return { success: true, path: file_path };
+    },
+  });
+
   const result = streamText({
     model: anthropic("claude-opus-4-5-20251101"),
-    system: systemPrompt,
-    messages: await convertToModelMessages(messages),
-    tools: { write_file: writeFileTool },
+    system: system || undefined,
+    messages: await convertToModelMessages(allMessages),
+    tools: { write_file: writeFileTool, edit_file: editFileTool },
   });
 
   return result.toUIMessageStreamResponse({
