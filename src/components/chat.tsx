@@ -1,58 +1,145 @@
-'use client'
+"use client";
 
-import { useState, useCallback } from 'react'
-import { useChat } from '@ai-sdk/react'
-import { CopyIcon, CheckIcon } from 'lucide-react'
+import { useState, useCallback, useEffect, useRef } from "react";
+import { useChat } from "@ai-sdk/react";
+import { CopyIcon, CheckIcon, CoinsIcon, FileIcon } from "lucide-react";
 import {
   Conversation,
   ConversationContent,
   ConversationScrollButton,
-} from '@/components/ai-elements/conversation'
+} from "@/components/ai-elements/conversation";
 import {
   Message,
   MessageContent,
   MessageResponse,
   MessageActions,
   MessageAction,
-} from '@/components/ai-elements/message'
+} from "@/components/ai-elements/message";
 import {
   PromptInput,
   PromptInputTextarea,
   PromptInputSubmit,
   PromptInputFooter,
   type PromptInputMessage,
-} from '@/components/ai-elements/prompt-input'
+} from "@/components/ai-elements/prompt-input";
 
 function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
+  const [copied, setCopied] = useState(false);
 
   const handleCopy = useCallback(async () => {
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }, [text])
+    await navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }, [text]);
 
   return (
     <MessageAction tooltip={copied ? "Copied!" : "Copy"} onClick={handleCopy}>
-      {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
+      {copied ? (
+        <CheckIcon className="size-4" />
+      ) : (
+        <CopyIcon className="size-4" />
+      )}
     </MessageAction>
-  )
+  );
 }
 
-function getMessageText(message: { parts?: Array<{ type: string; text?: string }> }): string {
-  return message.parts?.filter(p => p.type === 'text').map(p => p.type === 'text' ? p.text : '').join('') || ''
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getMessageText(message: { parts?: any[] }): string {
+  return (
+    message.parts
+      ?.filter((p: { type: string }) => p.type === "text")
+      .map((p: { text?: string }) => p.text || "")
+      .join("") || ""
+  );
 }
 
-export function ChatSection() {
-  const { messages, status, sendMessage } = useChat()
+type ToolPartInfo = {
+  type: string;
+  toolCallId: string;
+  input: Record<string, unknown>;
+  state: string;
+};
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getToolParts(message: { parts?: any[] }): ToolPartInfo[] {
+  return (
+    message.parts
+      ?.filter(
+        (p: { type: string }) =>
+          p.type.startsWith("tool-") && p.type !== "tool-result",
+      )
+      .map((p: ToolPartInfo) => p) || []
+  );
+}
+
+type TokenUsage = {
+  inputTokens: number;
+  outputTokens: number;
+  totalTokens: number;
+};
+
+export function ChatSection({
+  tokenUsage,
+  onToolComplete,
+}: {
+  tokenUsage?: TokenUsage;
+  onToolComplete?: () => void;
+}) {
+  const { messages, status, sendMessage } = useChat();
+  const lastToolCompleteRef = useRef<string | null>(null);
+
+  // Watch for tool completions and trigger callback
+  useEffect(() => {
+    for (const message of messages) {
+      const toolParts = getToolParts(message);
+      for (const tool of toolParts) {
+        if (
+          tool.state === "output-available" &&
+          lastToolCompleteRef.current !== tool.toolCallId
+        ) {
+          lastToolCompleteRef.current = tool.toolCallId;
+          onToolComplete?.();
+        }
+      }
+    }
+  }, [messages, onToolComplete]);
 
   const onSubmit = (message: PromptInputMessage) => {
-    if (!message.text.trim()) return
-    sendMessage({ text: message.text })
-  }
+    if (!message.text.trim()) return;
+    sendMessage({ text: message.text });
+  };
+
+  // Calculate cumulative usage from message metadata
+  const cumulativeUsage = messages.reduce(
+    (acc, msg) => {
+      const usage = (msg as { metadata?: { usage?: TokenUsage } }).metadata
+        ?.usage;
+      if (usage) {
+        return {
+          inputTokens: acc.inputTokens + (usage.inputTokens || 0),
+          outputTokens: acc.outputTokens + (usage.outputTokens || 0),
+          totalTokens: acc.totalTokens + (usage.totalTokens || 0),
+        };
+      }
+      return acc;
+    },
+    { inputTokens: 0, outputTokens: 0, totalTokens: 0 },
+  );
+
+  const displayUsage =
+    tokenUsage || (cumulativeUsage.totalTokens > 0 ? cumulativeUsage : null);
 
   return (
     <div className="flex h-[80vh] flex-col gap-4">
+      {displayUsage && (
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <CoinsIcon className="size-3" />
+          <span>
+            {displayUsage.inputTokens.toLocaleString()} in /{" "}
+            {displayUsage.outputTokens.toLocaleString()} out
+          </span>
+        </div>
+      )}
       <Conversation className="flex-1 rounded-lg border bg-card">
         <ConversationContent>
           {messages.length === 0 ? (
@@ -61,23 +148,46 @@ export function ChatSection() {
             </div>
           ) : (
             messages.map((message) => {
-              const text = getMessageText(message)
+              const text = getMessageText(message);
+              const toolParts = getToolParts(message);
               return (
                 <Message key={message.id} from={message.role}>
                   <MessageContent>
-                    {message.role === 'user' ? (
+                    {message.role === "user" ? (
                       <p>{text}</p>
                     ) : (
-                      <MessageResponse>{text}</MessageResponse>
+                      <>
+                        {toolParts.map((tool) => (
+                          <div
+                            key={tool.toolCallId}
+                            className="flex items-center gap-2 text-sm text-muted-foreground mb-2 px-2 py-1 bg-muted/50 rounded"
+                          >
+                            <FileIcon className="size-3" />
+                            <span>
+                              Write file:{" "}
+                              {String(tool.input?.file_path || "unknown")}
+                            </span>
+                            {tool.state === "output-available" && (
+                              <span className="text-xs text-primary">Done</span>
+                            )}
+                            {tool.state === "input-streaming" && (
+                              <span className="text-xs text-muted-foreground">
+                                ...
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                        {text && <MessageResponse>{text}</MessageResponse>}
+                      </>
                     )}
                   </MessageContent>
-                  {message.role === 'assistant' && text && (
+                  {message.role === "assistant" && text && (
                     <MessageActions>
                       <CopyButton text={text} />
                     </MessageActions>
                   )}
                 </Message>
-              )
+              );
             })
           )}
         </ConversationContent>
@@ -92,5 +202,5 @@ export function ChatSection() {
         </PromptInputFooter>
       </PromptInput>
     </div>
-  )
+  );
 }
