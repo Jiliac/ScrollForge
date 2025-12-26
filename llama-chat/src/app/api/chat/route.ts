@@ -4,10 +4,10 @@ import { streamText } from "ai";
 export async function POST(req: Request) {
   const { messages } = await req.json();
 
-  const result = streamText({
-    model: anthropic("claude-sonnet-4-20250514"),
+  const result = await streamText({
+    model: anthropic("claude-opus-4-5-20251101"),
     messages,
   });
 
-  return result.toDataStreamResponse();
+  return result.toUIMessageStreamResponse();
 }
