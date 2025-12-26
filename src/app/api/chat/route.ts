@@ -11,25 +11,41 @@ function getGameFilesDir(): string {
   );
 }
 
+async function readMdFilesRecursively(
+  dir: string,
+  baseDir: string,
+): Promise<{ relativePath: string; content: string }[]> {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const files: { relativePath: string; content: string }[] = [];
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const subFiles = await readMdFilesRecursively(fullPath, baseDir);
+      files.push(...subFiles);
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      const relativePath = path.relative(baseDir, fullPath);
+      const content = await fs.readFile(fullPath, "utf-8");
+      files.push({ relativePath, content });
+    }
+  }
+
+  return files;
+}
+
 async function loadGameContext(): Promise<{ system: string; context: string }> {
   try {
     const gameFilesDir = getGameFilesDir();
-    const entries = await fs.readdir(gameFilesDir, { withFileTypes: true });
-    const mdFiles = entries.filter(
-      (entry) => entry.isFile() && entry.name.endsWith(".md"),
-    );
+    const files = await readMdFilesRecursively(gameFilesDir, gameFilesDir);
 
     let system = "";
     const contextParts: string[] = [];
 
-    for (const file of mdFiles) {
-      const filePath = path.join(gameFilesDir, file.name);
-      const content = await fs.readFile(filePath, "utf-8");
-
-      if (file.name === "system.md") {
-        system = content;
+    for (const file of files) {
+      if (file.relativePath === "system.md") {
+        system = file.content;
       } else {
-        contextParts.push(`## ${file.name}\n\n${content}`);
+        contextParts.push(`## ${file.relativePath}\n\n${file.content}`);
       }
     }
 
@@ -79,5 +95,17 @@ export async function POST(req: Request) {
     tools: { write_file: writeFileTool },
   });
 
-  return result.toUIMessageStreamResponse();
+  return result.toUIMessageStreamResponse({
+    messageMetadata: ({ part }) => {
+      if (part.type === "finish") {
+        return {
+          usage: {
+            inputTokens: part.totalUsage.inputTokens,
+            outputTokens: part.totalUsage.outputTokens,
+            totalTokens: part.totalUsage.totalTokens,
+          },
+        };
+      }
+    },
+  });
 }

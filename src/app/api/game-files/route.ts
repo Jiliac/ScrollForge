@@ -8,23 +8,32 @@ function getGameFilesDir(): string {
   );
 }
 
+async function readMdFilesRecursively(
+  dir: string,
+  baseDir: string,
+): Promise<{ name: string; content: string }[]> {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  const files: { name: string; content: string }[] = [];
+
+  for (const entry of entries) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const subFiles = await readMdFilesRecursively(fullPath, baseDir);
+      files.push(...subFiles);
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      const relativePath = path.relative(baseDir, fullPath);
+      const content = await fs.readFile(fullPath, "utf-8");
+      files.push({ name: relativePath, content });
+    }
+  }
+
+  return files;
+}
+
 export async function GET() {
   try {
     const gameFilesDir = getGameFilesDir();
-    const entries = await fs.readdir(gameFilesDir, { withFileTypes: true });
-
-    const files = await Promise.all(
-      entries
-        .filter((entry) => entry.isFile() && entry.name.endsWith(".md"))
-        .map(async (entry) => {
-          const filePath = path.join(gameFilesDir, entry.name);
-          const content = await fs.readFile(filePath, "utf-8");
-          return {
-            name: entry.name,
-            content,
-          };
-        }),
-    );
+    const files = await readMdFilesRecursively(gameFilesDir, gameFilesDir);
 
     return Response.json({ files });
   } catch (error) {
