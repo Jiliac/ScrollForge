@@ -6,10 +6,14 @@ type Message = { role: "user" | "assistant"; content: string };
 function convertToCoreMessages(messages: UIMessage[]): Message[] {
   return messages.map((msg) => ({
     role: msg.role as "user" | "assistant",
-    content: msg.parts
-      ?.filter((part): part is { type: "text"; text: string } => part.type === "text")
-      .map((part) => part.text)
-      .join("") ?? "",
+    content:
+      msg.parts
+        ?.filter(
+          (part): part is { type: "text"; text: string } =>
+            part.type === "text",
+        )
+        .map((part) => part.text)
+        .join("") ?? "",
   }));
 }
 

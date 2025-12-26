@@ -6,9 +6,7 @@ async function main() {
 
   const result = await generateText({
     model: anthropic("claude-opus-4-5-20251101"),
-    messages: [
-      { role: "user", content: "Say hello in one sentence." }
-    ],
+    messages: [{ role: "user", content: "Say hello in one sentence." }],
   });
 
   console.log("Response:", result.text);
