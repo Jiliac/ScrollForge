@@ -1,6 +1,8 @@
 'use client'
 
+import { useState, useCallback } from 'react'
 import { useChat } from '@ai-sdk/react'
+import { CopyIcon, CheckIcon } from 'lucide-react'
 import {
   Conversation,
   ConversationContent,
@@ -10,6 +12,8 @@ import {
   Message,
   MessageContent,
   MessageResponse,
+  MessageActions,
+  MessageAction,
 } from '@/components/ai-elements/message'
 import {
   PromptInput,
@@ -18,6 +22,26 @@ import {
   PromptInputFooter,
   type PromptInputMessage,
 } from '@/components/ai-elements/prompt-input'
+
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = useCallback(async () => {
+    await navigator.clipboard.writeText(text)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }, [text])
+
+  return (
+    <MessageAction tooltip={copied ? "Copied!" : "Copy"} onClick={handleCopy}>
+      {copied ? <CheckIcon className="size-4" /> : <CopyIcon className="size-4" />}
+    </MessageAction>
+  )
+}
+
+function getMessageText(message: { parts?: Array<{ type: string; text?: string }> }): string {
+  return message.parts?.filter(p => p.type === 'text').map(p => p.type === 'text' ? p.text : '').join('') || ''
+}
 
 export function ChatSection() {
   const { messages, status, sendMessage } = useChat()
@@ -36,19 +60,25 @@ export function ChatSection() {
               Start a conversation
             </div>
           ) : (
-            messages.map((message) => (
-              <Message key={message.id} from={message.role}>
-                <MessageContent>
-                  {message.role === 'user' ? (
-                    <p>{message.parts?.filter(p => p.type === 'text').map(p => p.type === 'text' ? p.text : '').join('') || ''}</p>
-                  ) : (
-                    <MessageResponse>
-                      {message.parts?.filter(p => p.type === 'text').map(p => p.type === 'text' ? p.text : '').join('') || ''}
-                    </MessageResponse>
+            messages.map((message) => {
+              const text = getMessageText(message)
+              return (
+                <Message key={message.id} from={message.role}>
+                  <MessageContent>
+                    {message.role === 'user' ? (
+                      <p>{text}</p>
+                    ) : (
+                      <MessageResponse>{text}</MessageResponse>
+                    )}
+                  </MessageContent>
+                  {message.role === 'assistant' && text && (
+                    <MessageActions>
+                      <CopyButton text={text} />
+                    </MessageActions>
                   )}
-                </MessageContent>
-              </Message>
-            ))
+                </Message>
+              )
+            })
           )}
         </ConversationContent>
         <ConversationScrollButton />
