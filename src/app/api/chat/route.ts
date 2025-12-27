@@ -43,13 +43,22 @@ async function saveImageIndex(index: ImageIndex): Promise<void> {
 
 function searchImages(index: ImageIndex, query: string): ImageEntry | null {
   const q = query.toLowerCase();
+  const words = q.split(/\s+/).filter(Boolean);
+
   return (
-    index.images.find(
-      (img) =>
-        img.slug.toLowerCase().includes(q) ||
-        img.tags.some((tag) => tag.toLowerCase().includes(q)) ||
-        img.prompt.toLowerCase().includes(q),
-    ) || null
+    index.images.find((img) => {
+      const slug = img.slug.toLowerCase();
+      const prompt = img.prompt.toLowerCase();
+      const tags = img.tags.map((t) => t.toLowerCase());
+
+      // Check if all query words match somewhere (slug, tags, or prompt)
+      return words.every(
+        (word) =>
+          slug.includes(word) ||
+          tags.some((tag) => tag.includes(word)) ||
+          prompt.includes(word),
+      );
+    }) || null
   );
 }
 
@@ -76,19 +85,63 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-async function generateImageWithBfl(prompt: string): Promise<Buffer> {
+async function loadImageAsBase64(slug: string): Promise<string> {
+  const imagesDir = path.join(getGameFilesDir(), "images");
+  for (const ext of [".jpeg", ".jpg", ".png", ".webp"]) {
+    const filepath = path.join(imagesDir, `${slug}${ext}`);
+    try {
+      const buffer = await fs.readFile(filepath);
+      const base64 = buffer.toString("base64");
+      const mimeType =
+        ext === ".png"
+          ? "image/png"
+          : ext === ".webp"
+            ? "image/webp"
+            : "image/jpeg";
+      return `data:${mimeType};base64,${base64}`;
+    } catch {
+      continue;
+    }
+  }
+  throw new Error(`Image not found for slug: ${slug}`);
+}
+
+async function generateImageWithBfl(
+  prompt: string,
+  refSlugs?: string[],
+): Promise<Buffer> {
   if (!BFL_API_KEY) {
     throw new Error("BFL_API_KEY not configured");
   }
 
+  const hasRefs = refSlugs && refSlugs.length > 0;
+  const endpoint = hasRefs
+    ? "https://api.bfl.ai/v1/flux-kontext-pro"
+    : "https://api.bfl.ai/v1/flux-2-pro";
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const body: Record<string, any> = { prompt };
+
+  if (hasRefs) {
+    const refKeys = [
+      "input_image",
+      "input_image_2",
+      "input_image_3",
+      "input_image_4",
+    ];
+    for (let i = 0; i < Math.min(refSlugs.length, 4); i++) {
+      body[refKeys[i]] = await loadImageAsBase64(refSlugs[i]);
+    }
+  }
+
   // Submit job
-  const submitResponse = await fetch("https://api.bfl.ai/v1/flux-2-pro", {
+  const submitResponse = await fetch(endpoint, {
     method: "POST",
     headers: {
       "x-key": BFL_API_KEY,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify(body),
   });
 
   if (!submitResponse.ok) {
@@ -278,7 +331,7 @@ export async function POST(req: Request) {
 
   const createImageTool = tool({
     description:
-      "Generate a new image using FLUX AI. Saves to images folder, updates index, and adds reference to a markdown file.",
+      "Generate a new image using FLUX AI. Saves to images folder, updates index, and adds reference to a markdown file. Use reference_slugs to maintain character/scene consistency.",
     inputSchema: z.object({
       slug: z
         .string()
@@ -292,11 +345,23 @@ export async function POST(req: Request) {
         .describe(
           "Markdown file to add image reference to (e.g., 'characters/mahmud.md')",
         ),
+      reference_slugs: z
+        .array(z.string())
+        .optional()
+        .describe(
+          "Optional slugs of existing images to use as references for consistency (e.g., ['mahmud-portrait'] to keep the same face)",
+        ),
     }),
-    execute: async ({ slug, prompt, tags, reference_file }) => {
+    execute: async ({
+      slug,
+      prompt,
+      tags,
+      reference_file,
+      reference_slugs,
+    }) => {
       try {
-        // Generate image with BFL
-        const imageBuffer = await generateImageWithBfl(prompt);
+        // Generate image with BFL (uses Kontext if references provided)
+        const imageBuffer = await generateImageWithBfl(prompt, reference_slugs);
 
         // Save image
         const gameFilesDir = getGameFilesDir();

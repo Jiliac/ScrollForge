@@ -38,19 +38,70 @@ interface BflPollResponse {
   };
 }
 
-async function generateImage(prompt: string, slug?: string): Promise<string> {
+async function loadImageAsBase64(slug: string): Promise<string> {
+  const imagesDir = path.join(GAME_FILES_DIR!, "images");
+  // Try common extensions
+  for (const ext of [".jpeg", ".jpg", ".png", ".webp"]) {
+    const filepath = path.join(imagesDir, `${slug}${ext}`);
+    try {
+      const buffer = await fs.readFile(filepath);
+      const base64 = buffer.toString("base64");
+      const mimeType =
+        ext === ".png"
+          ? "image/png"
+          : ext === ".webp"
+            ? "image/webp"
+            : "image/jpeg";
+      return `data:${mimeType};base64,${base64}`;
+    } catch {
+      continue;
+    }
+  }
+  throw new Error(`Image not found for slug: ${slug}`);
+}
+
+async function generateImage(
+  prompt: string,
+  slug?: string,
+  refSlugs?: string[],
+): Promise<string> {
   console.log(`Generating image for: "${prompt}"`);
   if (slug) console.log(`Slug: ${slug}`);
+  if (refSlugs?.length) console.log(`Reference images: ${refSlugs.join(", ")}`);
+
+  // Determine endpoint based on whether we have reference images
+  const hasRefs = refSlugs && refSlugs.length > 0;
+  const endpoint = hasRefs
+    ? "https://api.bfl.ai/v1/flux-kontext-pro"
+    : "https://api.bfl.ai/v1/flux-2-pro";
+
+  // Build request body
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const body: Record<string, any> = { prompt };
+
+  if (hasRefs) {
+    // Load reference images as base64
+    const refKeys = [
+      "input_image",
+      "input_image_2",
+      "input_image_3",
+      "input_image_4",
+    ];
+    for (let i = 0; i < Math.min(refSlugs.length, 4); i++) {
+      console.log(`Loading reference: ${refSlugs[i]}...`);
+      body[refKeys[i]] = await loadImageAsBase64(refSlugs[i]);
+    }
+  }
 
   // 1. Submit job
-  console.log("Submitting to BFL API...");
-  const submitResponse = await fetch("https://api.bfl.ai/v1/flux-2-pro", {
+  console.log(`Submitting to BFL API (${hasRefs ? "Kontext" : "FLUX 2"})...`);
+  const submitResponse = await fetch(endpoint, {
     method: "POST",
     headers: {
       "x-key": BFL_API_KEY!,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify(body),
   });
 
   if (!submitResponse.ok) {
@@ -113,13 +164,17 @@ async function generateImage(prompt: string, slug?: string): Promise<string> {
 // CLI entry point
 const args = process.argv.slice(2);
 let slug: string | undefined;
-let promptParts: string[] = [];
+const refSlugs: string[] = [];
+const promptParts: string[] = [];
 
 // Parse args
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--slug" && args[i + 1]) {
     slug = args[i + 1];
-    i++; // skip next
+    i++;
+  } else if (args[i] === "--ref" && args[i + 1]) {
+    refSlugs.push(args[i + 1]);
+    i++;
   } else {
     promptParts.push(args[i]);
   }
@@ -129,18 +184,27 @@ const prompt = promptParts.join(" ");
 
 if (!prompt) {
   console.log(
-    "Usage: npx tsx scripts/generate-image.ts [--slug <name>] <prompt>",
+    "Usage: npx tsx scripts/generate-image.ts [--slug <name>] [--ref <slug>]... <prompt>",
+  );
+  console.log("");
+  console.log("Options:");
+  console.log("  --slug <name>   Output filename (without extension)");
+  console.log(
+    "  --ref <slug>    Reference image slug (can use multiple, max 4)",
+  );
+  console.log("");
+  console.log("Examples:");
+  console.log('  npx tsx scripts/generate-image.ts "A Persian merchant"');
+  console.log(
+    '  npx tsx scripts/generate-image.ts --slug bazaar "A bustling bazaar"',
   );
   console.log(
-    'Example: npx tsx scripts/generate-image.ts "A Persian merchant in a bazaar"',
-  );
-  console.log(
-    'Example: npx tsx scripts/generate-image.ts --slug bazaar-morning "A bustling bazaar at dawn"',
+    '  npx tsx scripts/generate-image.ts --ref mahmud-portrait --slug mahmud-angry "Mahmud looking angry"',
   );
   process.exit(1);
 }
 
-generateImage(prompt, slug)
+generateImage(prompt, slug, refSlugs.length > 0 ? refSlugs : undefined)
   .then((filepath) => {
     console.log(`\nDone! Image saved to: ${filepath}`);
   })
