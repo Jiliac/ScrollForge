@@ -38,8 +38,9 @@ interface BflPollResponse {
   };
 }
 
-async function generateImage(prompt: string): Promise<string> {
+async function generateImage(prompt: string, slug?: string): Promise<string> {
   console.log(`Generating image for: "${prompt}"`);
+  if (slug) console.log(`Slug: ${slug}`);
 
   // 1. Submit job
   console.log("Submitting to BFL API...");
@@ -98,8 +99,7 @@ async function generateImage(prompt: string): Promise<string> {
   const imageBuffer = await imageResponse.arrayBuffer();
 
   // 4. Save to images folder
-  const timestamp = Date.now();
-  const filename = `${timestamp}.jpeg`;
+  const filename = slug ? `${slug}.jpeg` : `${Date.now()}.jpeg`;
   const imagesDir = path.join(GAME_FILES_DIR!, "images");
 
   await fs.mkdir(imagesDir, { recursive: true });
@@ -111,17 +111,36 @@ async function generateImage(prompt: string): Promise<string> {
 }
 
 // CLI entry point
-const prompt = process.argv.slice(2).join(" ");
+const args = process.argv.slice(2);
+let slug: string | undefined;
+let promptParts: string[] = [];
+
+// Parse args
+for (let i = 0; i < args.length; i++) {
+  if (args[i] === "--slug" && args[i + 1]) {
+    slug = args[i + 1];
+    i++; // skip next
+  } else {
+    promptParts.push(args[i]);
+  }
+}
+
+const prompt = promptParts.join(" ");
 
 if (!prompt) {
-  console.log("Usage: npx tsx scripts/generate-image.ts <prompt>");
+  console.log(
+    "Usage: npx tsx scripts/generate-image.ts [--slug <name>] <prompt>",
+  );
   console.log(
     'Example: npx tsx scripts/generate-image.ts "A Persian merchant in a bazaar"',
+  );
+  console.log(
+    'Example: npx tsx scripts/generate-image.ts --slug bazaar-morning "A bustling bazaar at dawn"',
   );
   process.exit(1);
 }
 
-generateImage(prompt)
+generateImage(prompt, slug)
   .then((filepath) => {
     console.log(`\nDone! Image saved to: ${filepath}`);
   })

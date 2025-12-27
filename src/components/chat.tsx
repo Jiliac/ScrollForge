@@ -2,7 +2,13 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useChat } from "@ai-sdk/react";
-import { CopyIcon, CheckIcon, CoinsIcon, FileIcon } from "lucide-react";
+import {
+  CopyIcon,
+  CheckIcon,
+  CoinsIcon,
+  FileIcon,
+  ImageIcon,
+} from "lucide-react";
 import {
   Conversation,
   ConversationContent,
@@ -57,6 +63,7 @@ type ToolPartInfo = {
   type: string;
   toolCallId: string;
   input: Record<string, unknown>;
+  output?: Record<string, unknown>;
   state: string;
 };
 
@@ -81,14 +88,17 @@ type TokenUsage = {
 export function ChatSection({
   tokenUsage,
   onToolComplete,
+  onImageChange,
 }: {
   tokenUsage?: TokenUsage;
   onToolComplete?: () => void;
+  onImageChange?: (imagePath: string) => void;
 }) {
   const { messages, status, sendMessage } = useChat();
   const lastToolCompleteRef = useRef<string | null>(null);
+  const lastImageToolRef = useRef<string | null>(null);
 
-  // Watch for tool completions and trigger callback
+  // Watch for tool completions and trigger callbacks
   useEffect(() => {
     for (const message of messages) {
       const toolParts = getToolParts(message);
@@ -99,10 +109,21 @@ export function ChatSection({
         ) {
           lastToolCompleteRef.current = tool.toolCallId;
           onToolComplete?.();
+
+          // Check for image tools and extract path
+          const toolName = tool.type.replace("tool-", "");
+          if (
+            (toolName === "create_image" || toolName === "search_image") &&
+            tool.output?.path &&
+            lastImageToolRef.current !== tool.toolCallId
+          ) {
+            lastImageToolRef.current = tool.toolCallId;
+            onImageChange?.(String(tool.output.path));
+          }
         }
       }
     }
-  }, [messages, onToolComplete]);
+  }, [messages, onToolComplete, onImageChange]);
 
   const onSubmit = (message: PromptInputMessage) => {
     if (!message.text.trim()) return;
@@ -152,21 +173,36 @@ export function ChatSection({
                       <>
                         {toolParts.map((tool) => {
                           const toolName = tool.type.replace("tool-", "");
+                          const isImageTool =
+                            toolName === "create_image" ||
+                            toolName === "search_image";
                           const label =
                             toolName === "write_file"
                               ? "Write file"
                               : toolName === "edit_file"
                                 ? "Edit file"
-                                : toolName;
+                                : toolName === "create_image"
+                                  ? "Create image"
+                                  : toolName === "search_image"
+                                    ? "Search image"
+                                    : toolName;
+                          const displayValue = isImageTool
+                            ? String(
+                                tool.input?.slug || tool.input?.query || "",
+                              )
+                            : String(tool.input?.file_path || "unknown");
                           return (
                             <div
                               key={tool.toolCallId}
                               className="flex items-center gap-2 text-sm text-muted-foreground mb-2 px-2 py-1 bg-muted/50 rounded"
                             >
-                              <FileIcon className="size-3" />
+                              {isImageTool ? (
+                                <ImageIcon className="size-3" />
+                              ) : (
+                                <FileIcon className="size-3" />
+                              )}
                               <span>
-                                {label}:{" "}
-                                {String(tool.input?.file_path || "unknown")}
+                                {label}: {displayValue}
                               </span>
                               {tool.state === "output-available" && (
                                 <span className="text-xs text-primary">
