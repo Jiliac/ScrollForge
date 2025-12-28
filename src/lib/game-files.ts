@@ -14,9 +14,12 @@ export async function readMdFilesRecursively(
   const entries = await fs.readdir(dir, { withFileTypes: true });
   const files: { relativePath: string; content: string }[] = [];
 
+  const IGNORED_DIRS = new Set(["videos", "images"]);
+
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
+      if (IGNORED_DIRS.has(entry.name)) continue;
       const subFiles = await readMdFilesRecursively(fullPath, baseDir);
       files.push(...subFiles);
     } else if (entry.isFile() && entry.name.endsWith(".md")) {

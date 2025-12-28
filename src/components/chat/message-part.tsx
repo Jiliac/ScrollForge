@@ -8,12 +8,18 @@ export type MessagePartProps = {
   part: UIMessagePart<UIDataTypes, UITools>;
 };
 
+// Strip markdown image syntax: ![alt](url)
+function stripMarkdownImages(text: string): string {
+  return text.replace(/!\[[^\]]*\]\([^)]*\)/g, "").trim();
+}
+
 export function MessagePart({ part }: MessagePartProps) {
   if (part.type === "text") {
-    if (!part.text) {
+    const text = stripMarkdownImages(part.text);
+    if (!text) {
       return null;
     }
-    return <MessageResponse>{part.text}</MessageResponse>;
+    return <MessageResponse>{text}</MessageResponse>;
   }
 
   if (part.type.startsWith("tool-") && part.type !== "tool-result") {
