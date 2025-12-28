@@ -1,26 +1,12 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
 import { useChat } from "@ai-sdk/react";
-import {
-  CopyIcon,
-  CheckIcon,
-  CoinsIcon,
-  FileIcon,
-  ImageIcon,
-} from "lucide-react";
+import { CoinsIcon } from "lucide-react";
 import {
   Conversation,
   ConversationContent,
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
-import {
-  Message,
-  MessageContent,
-  MessageResponse,
-  MessageActions,
-  MessageAction,
-} from "@/components/ai-elements/message";
 import {
   PromptInput,
   PromptInputTextarea,
@@ -28,56 +14,8 @@ import {
   PromptInputFooter,
   type PromptInputMessage,
 } from "@/components/ai-elements/prompt-input";
-
-function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false);
-
-  const handleCopy = useCallback(async () => {
-    await navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  }, [text]);
-
-  return (
-    <MessageAction tooltip={copied ? "Copied!" : "Copy"} onClick={handleCopy}>
-      {copied ? (
-        <CheckIcon className="size-4" />
-      ) : (
-        <CopyIcon className="size-4" />
-      )}
-    </MessageAction>
-  );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getMessageText(message: { parts?: any[] }): string {
-  return (
-    message.parts
-      ?.filter((p: { type: string }) => p.type === "text")
-      .map((p: { text?: string }) => p.text || "")
-      .join("") || ""
-  );
-}
-
-type ToolPartInfo = {
-  type: string;
-  toolCallId: string;
-  input: Record<string, unknown>;
-  output?: Record<string, unknown>;
-  state: string;
-};
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getToolParts(message: { parts?: any[] }): ToolPartInfo[] {
-  return (
-    message.parts
-      ?.filter(
-        (p: { type: string }) =>
-          p.type.startsWith("tool-") && p.type !== "tool-result",
-      )
-      .map((p: ToolPartInfo) => p) || []
-  );
-}
+import { useChatEffects } from "@/hooks/use-chat-effects";
+import { MessageList } from "@/components/chat/message-list";
 
 type TokenUsage = {
   inputTokens: number;
@@ -85,151 +23,34 @@ type TokenUsage = {
   totalTokens: number;
 };
 
+export type ChatSectionProps = {
+  tokenUsage?: TokenUsage;
+  onToolComplete?: () => void;
+  onImageChange?: (imagePath: string) => void;
+};
+
 export function ChatSection({
   tokenUsage,
   onToolComplete,
   onImageChange,
-}: {
-  tokenUsage?: TokenUsage;
-  onToolComplete?: () => void;
-  onImageChange?: (imagePath: string) => void;
-}) {
+}: ChatSectionProps) {
   const { messages, status, sendMessage } = useChat();
-  const lastToolCompleteRef = useRef<string | null>(null);
-  const lastImageToolRef = useRef<string | null>(null);
 
-  // Watch for tool completions and trigger callbacks
-  useEffect(() => {
-    for (const message of messages) {
-      const toolParts = getToolParts(message);
-      for (const tool of toolParts) {
-        if (
-          tool.state === "output-available" &&
-          lastToolCompleteRef.current !== tool.toolCallId
-        ) {
-          lastToolCompleteRef.current = tool.toolCallId;
-          onToolComplete?.();
-
-          // Check for image tools and extract path
-          const toolName = tool.type.replace("tool-", "");
-          if (
-            (toolName === "create_image" || toolName === "search_image") &&
-            tool.output?.path &&
-            lastImageToolRef.current !== tool.toolCallId
-          ) {
-            lastImageToolRef.current = tool.toolCallId;
-            onImageChange?.(String(tool.output.path));
-          }
-        }
-      }
-    }
-  }, [messages, onToolComplete, onImageChange]);
+  useChatEffects(messages, onToolComplete, onImageChange);
 
   const onSubmit = (message: PromptInputMessage) => {
     if (!message.text.trim()) return;
     sendMessage({ text: message.text });
   };
 
-  // Get usage from the latest assistant message
-  const latestUsage = [...messages]
-    .reverse()
-    .find(
-      (msg) =>
-        msg.role === "assistant" &&
-        (msg as { metadata?: { usage?: TokenUsage } }).metadata?.usage,
-    );
-  const lastUsage = (latestUsage as { metadata?: { usage?: TokenUsage } })
-    ?.metadata?.usage;
-
-  const displayUsage = tokenUsage || lastUsage || null;
+  const displayUsage = tokenUsage || getLatestUsage(messages);
 
   return (
     <div className="flex h-[80vh] flex-col gap-4">
-      {displayUsage && (
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <CoinsIcon className="size-3" />
-          <span>
-            {displayUsage.inputTokens.toLocaleString()} in /{" "}
-            {displayUsage.outputTokens.toLocaleString()} out
-          </span>
-        </div>
-      )}
+      {displayUsage && <TokenDisplay usage={displayUsage} />}
       <Conversation className="flex-1 rounded-lg border bg-card">
         <ConversationContent>
-          {messages.length === 0 ? (
-            <div className="flex h-full items-center justify-center text-muted-foreground">
-              Start a conversation
-            </div>
-          ) : (
-            messages.map((message) => {
-              const text = getMessageText(message);
-              const toolParts = getToolParts(message);
-              return (
-                <Message key={message.id} from={message.role}>
-                  <MessageContent>
-                    {message.role === "user" ? (
-                      <p>{text}</p>
-                    ) : (
-                      <>
-                        {toolParts.map((tool) => {
-                          const toolName = tool.type.replace("tool-", "");
-                          const isImageTool =
-                            toolName === "create_image" ||
-                            toolName === "search_image";
-                          const label =
-                            toolName === "write_file"
-                              ? "Write file"
-                              : toolName === "edit_file"
-                                ? "Edit file"
-                                : toolName === "create_image"
-                                  ? "Create image"
-                                  : toolName === "search_image"
-                                    ? "Search image"
-                                    : toolName;
-                          const displayValue = isImageTool
-                            ? String(
-                                tool.input?.slug || tool.input?.query || "",
-                              )
-                            : String(tool.input?.file_path || "unknown");
-                          return (
-                            <div
-                              key={tool.toolCallId}
-                              className="flex items-center gap-2 text-sm text-muted-foreground mb-2 px-2 py-1 bg-muted/50 rounded"
-                            >
-                              {isImageTool ? (
-                                <ImageIcon className="size-3" />
-                              ) : (
-                                <FileIcon className="size-3" />
-                              )}
-                              <span>
-                                {label}: {displayValue}
-                              </span>
-                              {tool.state === "output-available" && (
-                                <span className="text-xs text-primary">
-                                  Done
-                                </span>
-                              )}
-                              {tool.state === "input-streaming" && (
-                                <span className="text-xs text-muted-foreground">
-                                  ...
-                                </span>
-                              )}
-                            </div>
-                          );
-                        })}
-                        {text && <MessageResponse>{text}</MessageResponse>}
-                      </>
-                    )}
-                  </MessageContent>
-                  {message.role === "assistant" && text && (
-                    <MessageActions>
-                      <CopyButton text={text} />
-                    </MessageActions>
-                  )}
-                </Message>
-              );
-            })
-          )}
+          <MessageList messages={messages} />
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
@@ -243,4 +64,37 @@ export function ChatSection({
       </PromptInput>
     </div>
   );
+}
+
+type TokenDisplayProps = {
+  usage: TokenUsage;
+};
+
+function TokenDisplay({ usage }: TokenDisplayProps) {
+  return (
+    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+      <CoinsIcon className="size-3" />
+      <span>
+        {usage.inputTokens.toLocaleString()} in /{" "}
+        {usage.outputTokens.toLocaleString()} out
+      </span>
+    </div>
+  );
+}
+
+function getLatestUsage(
+  messages: { role: string; metadata?: unknown }[],
+): TokenUsage | null {
+  const latestAssistant = [...messages]
+    .reverse()
+    .find(
+      (msg) =>
+        msg.role === "assistant" &&
+        msg.metadata &&
+        typeof msg.metadata === "object" &&
+        "usage" in msg.metadata,
+    );
+  if (!latestAssistant?.metadata) return null;
+  const metadata = latestAssistant.metadata as { usage?: TokenUsage };
+  return metadata.usage || null;
 }
