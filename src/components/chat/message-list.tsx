@@ -6,7 +6,7 @@ import {
   MessageContent,
   MessageActions,
 } from "@/components/ai-elements/message";
-import { MessagePart, type MessagePartData } from "./message-part";
+import { MessagePart } from "./message-part";
 import { CopyButton } from "./copy-button";
 
 function getMessageText(message: UIMessage): string {
@@ -69,7 +69,7 @@ function MessageItem({ message }: MessageItemProps) {
     <Message from="assistant">
       <MessageContent>
         {message.parts?.map((part, index) => (
-          <MessagePart key={index} part={part as MessagePartData} />
+          <MessagePart key={index} part={part} />
         ))}
       </MessageContent>
       {text && (

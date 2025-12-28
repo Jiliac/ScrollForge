@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Third-party component library (has pre-existing lint issues)
+    "src/components/ai-elements/**",
   ]),
 ]);
 
