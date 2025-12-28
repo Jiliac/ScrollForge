@@ -7,21 +7,21 @@ import { ImagePane } from "@/components/image-pane";
 
 export default function Home() {
   const [refreshKey, setRefreshKey] = useState(0);
-  const [currentImage, setCurrentImage] = useState<string | null>(null);
+  const [images, setImages] = useState<string[]>([]);
 
   const handleToolComplete = () => {
     setRefreshKey((k) => k + 1);
   };
 
   const handleImageChange = (imagePath: string) => {
-    setCurrentImage(imagePath);
+    setImages((prev) => [...prev, imagePath]);
   };
 
   return (
     <main className="flex h-screen p-4 gap-4">
       {/* Left: Image Pane */}
       <div className="w-1/2 flex flex-col gap-4">
-        <ImagePane imagePath={currentImage} />
+        <ImagePane images={images} />
       </div>
 
       {/* Right: Chat */}
