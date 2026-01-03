@@ -15,10 +15,10 @@ export async function POST(req: Request) {
 
   const contextMessage: UIMessage | null = context
     ? {
-        id: "game-context",
-        role: "user",
-        parts: [{ type: "text", text: `# Game Context\n\n${context}` }],
-      }
+      id: "game-context",
+      role: "user",
+      parts: [{ type: "text", text: `# Game Context\n\n${context}` }],
+    }
     : null;
 
   const allMessages = contextMessage ? [contextMessage, ...messages] : messages;
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
     system: system || undefined,
     messages: await convertToModelMessages(allMessages),
     tools,
-    stopWhen: stepCountIs(10),
+    stopWhen: stepCountIs(20),
   });
 
   return result.toUIMessageStreamResponse({
