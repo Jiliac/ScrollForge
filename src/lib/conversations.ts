@@ -1,11 +1,18 @@
 import { prisma } from "./prisma";
 import type { UIMessage } from "ai";
 
-export async function createConversation(): Promise<string> {
+export async function createConversation(id?: string): Promise<string> {
   const conversation = await prisma.conversation.create({
-    data: {},
+    data: id ? { id } : {},
   });
   return conversation.id;
+}
+
+export async function ensureConversationExists(id: string): Promise<void> {
+  const existing = await prisma.conversation.findUnique({ where: { id } });
+  if (!existing) {
+    await prisma.conversation.create({ data: { id } });
+  }
 }
 
 export async function saveMessages(

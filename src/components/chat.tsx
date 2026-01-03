@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
+import { nanoid } from "nanoid";
 import { CoinsIcon } from "lucide-react";
 import {
   Conversation,
@@ -43,12 +44,15 @@ export function ChatSection({
 }: ChatSectionProps) {
   const router = useRouter();
   const pathname = usePathname();
-  const [conversationId, setConversationId] = useState<string | undefined>(
-    initialConversationId,
-  );
   const hasRedirectedRef = useRef(false);
 
-  // Create transport with conversationId in body
+  // Generate stable conversationId upfront - either from props or new
+  const conversationId = useMemo(
+    () => initialConversationId || nanoid(),
+    [initialConversationId],
+  );
+
+  // Create transport ONCE with stable conversationId
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
@@ -59,35 +63,25 @@ export function ChatSection({
   );
 
   const { messages, status, sendMessage } = useChat({
-    id: initialConversationId,
+    id: conversationId,
     messages: initialMessages,
     transport,
-    onFinish({ message }) {
-      // Extract conversationId from message metadata
-      const metadata = message.metadata as
-        | { conversationId?: string }
-        | undefined;
-      if (metadata?.conversationId && !conversationId) {
-        setConversationId(metadata.conversationId);
-      }
-    },
   });
 
   useChatEffects(messages, onToolComplete, onImageChange);
 
-  // Redirect to /chat/[id] when we have a conversationId and are on home
+  // Redirect to /chat/[id] after first exchange on home page
   useEffect(() => {
     if (
       pathname === "/" &&
       status === "ready" &&
-      conversationId &&
-      messages.length > 0 &&
+      messages.length > 1 && // Has user + assistant message
       !hasRedirectedRef.current
     ) {
       hasRedirectedRef.current = true;
       router.push(`/chat/${conversationId}`);
     }
-  }, [pathname, status, conversationId, messages.length, router]);
+  }, [pathname, status, messages.length, conversationId, router]);
 
   const onSubmit = (message: PromptInputMessage) => {
     if (!message.text.trim()) return;

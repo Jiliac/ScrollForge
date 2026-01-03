@@ -6,17 +6,17 @@ import {
   type UIMessage,
 } from "ai";
 import { loadGameContext } from "@/lib/game-files";
-import { createConversation, saveMessages } from "@/lib/conversations";
+import { ensureConversationExists, saveMessages } from "@/lib/conversations";
 import { tools } from "./tools";
 
 export async function POST(req: Request) {
   const {
     messages,
-    conversationId: existingConversationId,
-  }: { messages: UIMessage[]; conversationId?: string } = await req.json();
+    conversationId,
+  }: { messages: UIMessage[]; conversationId: string } = await req.json();
 
-  // Create conversation if not provided
-  const conversationId = existingConversationId || (await createConversation());
+  // Ensure conversation exists (client generates ID, server creates record if needed)
+  await ensureConversationExists(conversationId);
 
   const { system, context } = await loadGameContext();
 
