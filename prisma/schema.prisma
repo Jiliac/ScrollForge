@@ -1,0 +1,22 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Image {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  file         String
+  prompt       String
+  tags         String   // JSON array stored as string
+  referencedIn String
+  createdAt    DateTime @default(now())
+}

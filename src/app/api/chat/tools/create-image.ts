@@ -3,7 +3,7 @@ import path from "path";
 import { tool } from "ai";
 import { z } from "zod";
 import { getGameFilesDir } from "@/lib/game-files";
-import { loadImageIndex, saveImageIndex } from "@/lib/image-index";
+import { createImage } from "@/lib/image-index";
 import { generateImageWithBfl } from "@/lib/bfl-api";
 
 export const createImageTool = tool({
@@ -70,15 +70,13 @@ EXISTING CHARACTER IN NEW SCENE (with ref):
       const filename = `${slug}.jpeg`;
       await fs.writeFile(path.join(imagesDir, filename), imageBuffer);
 
-      const index = await loadImageIndex();
-      index.images.push({
+      await createImage({
         slug,
         file: filename,
         prompt,
         tags,
         referencedIn: reference_file,
       });
-      await saveImageIndex(index);
 
       const refFilePath = path.join(gameFilesDir, reference_file);
       try {

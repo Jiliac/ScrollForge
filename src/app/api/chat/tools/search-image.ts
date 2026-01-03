@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { loadImageIndex, searchImages } from "@/lib/image-index";
+import { searchImages } from "@/lib/image-index";
 
 export const searchImageTool = tool({
   description:
@@ -11,8 +11,7 @@ export const searchImageTool = tool({
       .describe("Search query (matches against slug, tags, or prompt)"),
   }),
   execute: async ({ query }) => {
-    const index = await loadImageIndex();
-    const result = searchImages(index, query);
+    const result = await searchImages(query);
 
     if (!result) {
       return { success: false, error: `No image found for query: ${query}` };

@@ -2,8 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { config } from "dotenv";
 
-// Load env from .env.local
-config({ path: ".env.local" });
+config({ path: ".env" });
 
 const BFL_API_KEY = process.env.BFL_API_KEY;
 const GAME_FILES_DIR = process.env.GAME_FILES_DIR;

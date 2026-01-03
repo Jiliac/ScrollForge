@@ -1,6 +1,5 @@
-import { promises as fs } from "fs";
-import path from "path";
-import { getGameFilesDir } from "./game-files";
+import { prisma } from "./prisma";
+import type { Image } from "@/generated/prisma/client";
 
 export interface ImageEntry {
   slug: string;
@@ -10,46 +9,58 @@ export interface ImageEntry {
   referencedIn: string;
 }
 
-export interface ImageIndex {
-  images: ImageEntry[];
+function dbToEntry(image: Image): ImageEntry {
+  return {
+    slug: image.slug,
+    file: image.file,
+    prompt: image.prompt,
+    tags: JSON.parse(image.tags) as string[],
+    referencedIn: image.referencedIn,
+  };
 }
 
-export async function loadImageIndex(): Promise<ImageIndex> {
-  const indexPath = path.join(getGameFilesDir(), "images", "index.json");
-  try {
-    const content = await fs.readFile(indexPath, "utf-8");
-    return JSON.parse(content) as ImageIndex;
-  } catch {
-    return { images: [] };
-  }
+export async function createImage(entry: ImageEntry): Promise<Image> {
+  return prisma.image.create({
+    data: {
+      slug: entry.slug,
+      file: entry.file,
+      prompt: entry.prompt,
+      tags: JSON.stringify(entry.tags),
+      referencedIn: entry.referencedIn,
+    },
+  });
 }
 
-export async function saveImageIndex(index: ImageIndex): Promise<void> {
-  const imagesDir = path.join(getGameFilesDir(), "images");
-  await fs.mkdir(imagesDir, { recursive: true });
-  const indexPath = path.join(imagesDir, "index.json");
-  await fs.writeFile(indexPath, JSON.stringify(index, null, 2), "utf-8");
+export async function getImageBySlug(slug: string): Promise<ImageEntry | null> {
+  const image = await prisma.image.findUnique({ where: { slug } });
+  return image ? dbToEntry(image) : null;
 }
 
-export function searchImages(
-  index: ImageIndex,
-  query: string,
-): ImageEntry | null {
+export async function getAllImages(): Promise<ImageEntry[]> {
+  const images = await prisma.image.findMany({
+    orderBy: { createdAt: "desc" },
+  });
+  return images.map(dbToEntry);
+}
+
+export async function searchImages(query: string): Promise<ImageEntry | null> {
   const q = query.toLowerCase();
   const words = q.split(/\s+/).filter(Boolean);
 
-  return (
-    index.images.find((img) => {
-      const slug = img.slug.toLowerCase();
-      const prompt = img.prompt.toLowerCase();
-      const tags = img.tags.map((t) => t.toLowerCase());
+  const images = await prisma.image.findMany();
 
-      return words.every(
-        (word) =>
-          slug.includes(word) ||
-          tags.some((tag) => tag.includes(word)) ||
-          prompt.includes(word),
-      );
-    }) || null
-  );
+  const found = images.find((img) => {
+    const slug = img.slug.toLowerCase();
+    const prompt = img.prompt.toLowerCase();
+    const tags = (JSON.parse(img.tags) as string[]).map((t) => t.toLowerCase());
+
+    return words.every(
+      (word) =>
+        slug.includes(word) ||
+        tags.some((tag) => tag.includes(word)) ||
+        prompt.includes(word),
+    );
+  });
+
+  return found ? dbToEntry(found) : null;
 }
