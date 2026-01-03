@@ -111,7 +111,7 @@ export function ChatSection({
   return (
     <div className="flex flex-1 flex-col gap-4 min-h-0">
       {displayUsage && <TokenDisplay usage={displayUsage} />}
-      <Conversation className="flex-1 rounded-lg border bg-card">
+      <Conversation className="flex-1">
         <ConversationContent>
           <MessageList messages={messages} />
         </ConversationContent>

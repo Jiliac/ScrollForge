@@ -48,17 +48,17 @@ export function ToolPart({ tool }: ToolPartProps) {
         : "";
 
     return (
-      <div className="mb-2 flex items-center gap-2 rounded bg-muted/50 px-2 py-1 text-sm text-muted-foreground">
-        <Dices className="size-3" />
-        <span>{label}</span>
+      <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
+        <Dices className="size-3 opacity-60" />
+        <span className="opacity-80">{label}</span>
         {isComplete ? (
           <>
-            <span className={cn("font-bold", rollColor)}>{roll}</span>
-            <span>—</span>
-            <span className="italic text-foreground">{outcome}</span>
+            <span className={cn("font-medium", rollColor)}>{roll}</span>
+            <span className="opacity-50">—</span>
+            <span className="italic text-foreground/80">{outcome}</span>
           </>
         ) : (
-          <span className="text-xs">...</span>
+          <span className="text-xs opacity-50">...</span>
         )}
       </div>
     );
@@ -69,20 +69,20 @@ export function ToolPart({ tool }: ToolPartProps) {
     : String(tool.input?.file_path || "unknown");
 
   return (
-    <div className="mb-2 flex items-center gap-2 rounded bg-muted/50 px-2 py-1 text-sm text-muted-foreground">
+    <div className="mb-3 flex items-center gap-2 text-sm text-muted-foreground">
       {isImageTool ? (
-        <ImageIcon className="size-3" />
+        <ImageIcon className="size-3 opacity-60" />
       ) : (
-        <FileIcon className="size-3" />
+        <FileIcon className="size-3 opacity-60" />
       )}
-      <span>
+      <span className="opacity-80">
         {label}: {displayValue}
       </span>
       {tool.state === "output-available" && (
-        <span className="text-xs text-primary">Done</span>
+        <span className="text-xs text-primary/70">Done</span>
       )}
       {tool.state === "input-streaming" && (
-        <span className="text-xs text-muted-foreground">...</span>
+        <span className="text-xs opacity-50">...</span>
       )}
     </div>
   );
