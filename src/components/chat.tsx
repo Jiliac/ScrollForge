@@ -1,6 +1,9 @@
 "use client";
 
+import { useEffect, useState, useRef, useMemo } from "react";
+import { useRouter, usePathname } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
+import { DefaultChatTransport, type UIMessage } from "ai";
 import { CoinsIcon } from "lucide-react";
 import {
   Conversation,
@@ -24,19 +27,67 @@ type TokenUsage = {
 };
 
 export type ChatSectionProps = {
+  conversationId?: string;
+  initialMessages?: UIMessage[];
   tokenUsage?: TokenUsage;
   onToolComplete?: () => void;
   onImageChange?: (imagePath: string) => void;
 };
 
 export function ChatSection({
+  conversationId: initialConversationId,
+  initialMessages,
   tokenUsage,
   onToolComplete,
   onImageChange,
 }: ChatSectionProps) {
-  const { messages, status, sendMessage } = useChat();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [conversationId, setConversationId] = useState<string | undefined>(
+    initialConversationId,
+  );
+  const hasRedirectedRef = useRef(false);
+
+  // Create transport with conversationId in body
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: "/api/chat",
+        body: { conversationId },
+      }),
+    [conversationId],
+  );
+
+  const { messages, status, sendMessage } = useChat({
+    id: initialConversationId,
+    messages: initialMessages,
+    transport,
+    onFinish({ message }) {
+      // Extract conversationId from message metadata
+      const metadata = message.metadata as
+        | { conversationId?: string }
+        | undefined;
+      if (metadata?.conversationId && !conversationId) {
+        setConversationId(metadata.conversationId);
+      }
+    },
+  });
 
   useChatEffects(messages, onToolComplete, onImageChange);
+
+  // Redirect to /chat/[id] when we have a conversationId and are on home
+  useEffect(() => {
+    if (
+      pathname === "/" &&
+      status === "ready" &&
+      conversationId &&
+      messages.length > 0 &&
+      !hasRedirectedRef.current
+    ) {
+      hasRedirectedRef.current = true;
+      router.push(`/chat/${conversationId}`);
+    }
+  }, [pathname, status, conversationId, messages.length, router]);
 
   const onSubmit = (message: PromptInputMessage) => {
     if (!message.text.trim()) return;
@@ -46,7 +97,7 @@ export function ChatSection({
   const displayUsage = tokenUsage || getLatestUsage(messages);
 
   return (
-    <div className="flex h-[80vh] flex-col gap-4">
+    <div className="flex flex-1 flex-col gap-4 min-h-0">
       {displayUsage && <TokenDisplay usage={displayUsage} />}
       <Conversation className="flex-1 rounded-lg border bg-card">
         <ConversationContent>
