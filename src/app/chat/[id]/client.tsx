@@ -25,7 +25,9 @@ export function ChatPageClient({
   };
 
   const handleImageChange = (imagePath: string) => {
-    setImages((prev) => [...prev, imagePath]);
+    setImages((prev) =>
+      prev.includes(imagePath) ? prev : [...prev, imagePath],
+    );
   };
 
   return (

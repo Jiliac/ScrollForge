@@ -6,7 +6,7 @@ import {
   type UIMessage,
 } from "ai";
 import { loadGameContext } from "@/lib/game-files";
-import { ensureConversationExists, saveMessages } from "@/lib/conversations";
+import { ensureConversationExists } from "@/lib/conversations";
 import { tools } from "./tools";
 
 export async function POST(req: Request) {
@@ -36,16 +36,8 @@ export async function POST(req: Request) {
     messages: await convertToModelMessages(allMessages),
     tools,
     stopWhen: stepCountIs(20),
-    async onFinish({ response, text }) {
-      // Save all messages (user messages + new assistant message)
-      // Note: We save the text content; tool calls are embedded in the stream
-      const assistantMessage: UIMessage = {
-        id: response.id,
-        role: "assistant",
-        parts: [{ type: "text", text }],
-      };
-      await saveMessages(conversationId, [...messages, assistantMessage]);
-    },
+    // Note: Messages are saved by the client after stream completes
+    // to preserve full UIMessage structure including tool calls
   });
 
   return result.toUIMessageStreamResponse({

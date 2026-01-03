@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useMemo } from "react";
+import { useEffect, useRef, useMemo, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
@@ -70,18 +70,36 @@ export function ChatSection({
 
   useChatEffects(messages, onToolComplete, onImageChange);
 
-  // Redirect to /chat/[id] after first exchange on home page
+  // Track last saved message count to avoid redundant saves
+  const lastSavedCountRef = useRef(initialMessages?.length ?? 0);
+  const [hasSavedInitial, setHasSavedInitial] = useState(false);
+
+  // Save messages after each exchange completes
   useEffect(() => {
     if (
-      pathname === "/" &&
       status === "ready" &&
-      messages.length > 1 && // Has user + assistant message
-      !hasRedirectedRef.current
+      messages.length > 1 &&
+      messages.length > lastSavedCountRef.current
     ) {
+      lastSavedCountRef.current = messages.length;
+      fetch(`/api/conversations/${conversationId}/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ messages }),
+      }).then(() => {
+        // Only set this on home page - signals save is done for redirect
+        if (pathname === "/") setHasSavedInitial(true);
+      });
+    }
+  }, [status, messages, conversationId, pathname]);
+
+  // Redirect to /chat/[id] after first exchange on home page (after save completes)
+  useEffect(() => {
+    if (pathname === "/" && hasSavedInitial && !hasRedirectedRef.current) {
       hasRedirectedRef.current = true;
       router.push(`/chat/${conversationId}`);
     }
-  }, [pathname, status, messages.length, conversationId, router]);
+  }, [pathname, hasSavedInitial, conversationId, router]);
 
   const onSubmit = (message: PromptInputMessage) => {
     if (!message.text.trim()) return;
