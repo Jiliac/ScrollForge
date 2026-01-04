@@ -1,7 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { UIMessage } from "ai";
+import { SquarePenIcon } from "lucide-react";
 import { ChatSection } from "@/components/chat";
 import { GameFilesList } from "@/components/game-files-list";
 import { ImagePane } from "@/components/image-pane";
@@ -31,7 +33,16 @@ export function ChatPageClient({
   };
 
   return (
-    <main className="flex h-screen p-4 gap-4">
+    <main className="relative flex h-screen p-4 gap-4">
+      {/* New Chat Button - Top Right */}
+      <Link
+        href="/"
+        className="absolute top-4 right-4 z-10 p-2 text-primary hover:text-primary/80 transition-colors"
+        title="New Chat"
+      >
+        <SquarePenIcon className="size-5" />
+      </Link>
+
       {/* Left: Image Pane */}
       <div className="w-1/2 flex flex-col gap-4">
         <ImagePane images={images} />
