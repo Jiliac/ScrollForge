@@ -1,0 +1,151 @@
+{
+  "title": "Day 5 - Morning: The Courtyard",
+  "voices": {
+    "narrator": {
+      "voice_id": "21m00Tcm4TlvDq8ikWAM",
+      "name": "Rachel (Narrator)"
+    },
+    "fatima": {
+      "voice_id": "EXAVITQu4vr4xnSDxMaL",
+      "name": "Bella (Fatima)"
+    },
+    "tahir": {
+      "voice_id": "TxGEqnHWrfWFTfGW9XjX",
+      "name": "Josh (Tahir)"
+    }
+  },
+  "dialogue": [
+    {
+      "speaker": "narrator",
+      "text": "The pomegranate tree catches the first light, its leaves still damp from the night's coolness. You find Fatima already up, directing Zahra in folding the sleeping mats while Maryam clings to her mother's robe, half-awake."
+    },
+    {
+      "speaker": "fatima",
+      "text": "You're up early. The Herawis tired you less than I expected."
+    },
+    {
+      "speaker": "tahir",
+      "text": "I slept well. Your lamb was excellent—Ibrahim said his wife couldn't match it."
+    },
+    {
+      "speaker": "fatima",
+      "text": "Flattery from merchants."
+    },
+    {
+      "speaker": "narrator",
+      "text": "But she allows herself a small smile. You accept the tea she pours—strong, the way she knows you like it. For a moment, the domestic rhythm holds: the splash of water in the basin, Zahra's chatter, the distant call of the first prayer from the neighborhood mosque. Then you say what you came to say."
+    },
+    {
+      "speaker": "tahir",
+      "text": "Fatima. Last night, with the dinner—you managed something I couldn't have done alone. The food, the atmosphere, making them feel honored in our home. It worked."
+    },
+    {
+      "speaker": "narrator",
+      "text": "She looks at you now, those sharp dark eyes assessing."
+    },
+    {
+      "speaker": "fatima",
+      "text": "What do you want?"
+    },
+    {
+      "speaker": "narrator",
+      "text": "You laugh despite yourself. She always cuts through the pleasantries."
+    },
+    {
+      "speaker": "tahir",
+      "text": "Sheikh Rostam told me something yesterday. He said quality gets respect, but presence—being there when a man's apprentice is sick or his wife dies—that's what gets you standing in the guild. I don't know who needs what. I don't know whose daughter is getting married or whose mother is dying. You do. Your mother does. The women's network sees everything."
+    },
+    {
+      "speaker": "narrator",
+      "text": "Fatima sets down her tea. She is quiet for a moment, watching Maryam toddle toward the herb garden."
+    },
+    {
+      "speaker": "fatima",
+      "text": "You want me to be your spy in the Sabbaghan."
+    },
+    {
+      "speaker": "tahir",
+      "text": "I want you to be my partner. The way merchant wives work with their husbands. Not just running the household. Running the information."
+    },
+    {
+      "speaker": "fatima",
+      "text": "I already told you about Old Mahmud's wife. About Karim's daughter's wedding."
+    },
+    {
+      "speaker": "tahir",
+      "text": "Yes. And I should have asked for that years ago. I need a list. Who matters in the guild. Who's having troubles. Who's rising, who's falling. Whose favor I should cultivate, and how. You know these things. Your mother knows them. I need to know them too."
+    },
+    {
+      "speaker": "narrator",
+      "text": "Fatima is silent for a long moment. When she speaks, her voice is different—lower, more serious."
+    },
+    {
+      "speaker": "fatima",
+      "text": "My mother says you've changed these past months. More ambitious. More... reaching. She's not sure if it's good."
+    },
+    {
+      "speaker": "tahir",
+      "text": "What do you think?"
+    },
+    {
+      "speaker": "fatima",
+      "text": "I think you were always ambitious. You just hid it better. I'll make you a list. But you should understand something, Tahir."
+    },
+    {
+      "speaker": "tahir",
+      "text": "What?"
+    },
+    {
+      "speaker": "fatima",
+      "text": "The women's network isn't free. If I start asking questions—pointed questions—about guild families, people will notice. They'll wonder why Fatima al-Sabbagh suddenly cares about who's sick and who's marrying. Some will think you're scheming. Some will think I'm scheming."
+    },
+    {
+      "speaker": "tahir",
+      "text": "Is that bad?"
+    },
+    {
+      "speaker": "fatima",
+      "text": "It depends on how you use what I tell you. If you visit Old Mahmud and bring honey, and his wife tells my mother you were kind, that's good. If you visit Old Mahmud and then try to poach his former apprentice, that's bad. The information has to serve relationships, not just advantage. Do you understand the difference?"
+    },
+    {
+      "speaker": "narrator",
+      "text": "You think about this. It's the same lesson Sheikh Rostam was teaching, but from another angle."
+    },
+    {
+      "speaker": "tahir",
+      "text": "I think so."
+    },
+    {
+      "speaker": "fatima",
+      "text": "Then I'll help you. Come home for the midday meal. I'll have the list ready, and my mother will come to tell you what she knows about the masters' households. She remembers things from when your father was alive—who helped Abbas, who didn't, who owes your family and who your family owes."
+    },
+    {
+      "speaker": "narrator",
+      "text": "Fatima adjusts her headscarf, preparing to see you off."
+    },
+    {
+      "speaker": "fatima",
+      "text": "One more thing. Your friend Bahram."
+    },
+    {
+      "speaker": "tahir",
+      "text": "Yes?"
+    },
+    {
+      "speaker": "fatima",
+      "text": "His wife Parvin talks. She's proud that you're teaching him the crimson. Very proud. She's told her sister, who told my mother's neighbor. By next week, the whole Sabbaghan will know you trust Bahram with your secrets."
+    },
+    {
+      "speaker": "narrator",
+      "text": "You feel a chill despite the warming morning."
+    },
+    {
+      "speaker": "tahir",
+      "text": "Is that bad?"
+    },
+    {
+      "speaker": "fatima",
+      "text": "It depends. If people think you're preparing Bahram to run the workshop while you travel, that's one story. If people think you're desperate, or dying, or losing your edge—that's another. Control the story before others tell it for you. When you see Bahram this morning, tell him exactly what you want people to think. He'll tell Parvin. She'll tell everyone."
+    }
+  ]
+}

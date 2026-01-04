@@ -1,0 +1,35 @@
+{
+  "title": "Hello World Test",
+  "voices": {
+    "narrator": {
+      "voice_id": "21m00Tcm4TlvDq8ikWAM",
+      "name": "Rachel (Narrator)"
+    },
+    "fatima": {
+      "voice_id": "EXAVITQu4vr4xnSDxMaL",
+      "name": "Bella (Fatima)"
+    },
+    "tahir": {
+      "voice_id": "TxGEqnHWrfWFTfGW9XjX",
+      "name": "Josh (Tahir)"
+    }
+  },
+  "dialogue": [
+    {
+      "speaker": "narrator",
+      "text": "The morning sun rises over the courtyard. Fatima stands by the pomegranate tree."
+    },
+    {
+      "speaker": "fatima",
+      "text": "You're up early. The Herawis tired you less than I expected."
+    },
+    {
+      "speaker": "tahir",
+      "text": "I slept well. Your lamb was excellent."
+    },
+    {
+      "speaker": "fatima",
+      "text": "Flattery from merchants."
+    }
+  ]
+}
