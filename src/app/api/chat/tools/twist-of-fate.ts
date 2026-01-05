@@ -18,8 +18,12 @@ interface ParseError {
 }
 
 function parseStakes(stakes: string): ParseResult | ParseError {
-  // Match patterns like "1-20: Some outcome." or "21-45: Another outcome."
-  const rangeRegex = /(\d+)\s*-\s*(\d+)\s*:\s*([^.]+\.)/g;
+  // Match range markers and capture text until the next range marker or end of string
+  // This approach is more robust than requiring periods - it handles:
+  // - Em-dashes, semicolons, question marks in outcome text
+  // - Multiple sentences
+  // - Missing trailing periods
+  const rangeRegex = /(\d+)\s*-\s*(\d+)\s*:\s*(.*?)(?=\s*\d+\s*-\s*\d+\s*:|$)/gs;
   const ranges: ParsedRange[] = [];
 
   let match;
@@ -27,6 +31,12 @@ function parseStakes(stakes: string): ParseResult | ParseError {
     const min = parseInt(match[1], 10);
     const max = parseInt(match[2], 10);
     const text = match[3].trim();
+
+    // Skip if we captured an empty outcome or if numbers look like they're part of text
+    // (e.g., "costs 50-60 dinars" shouldn't create a range)
+    if (!text) {
+      continue;
+    }
 
     if (min > max) {
       return {
@@ -91,9 +101,9 @@ function parseStakes(stakes: string): ParseResult | ParseError {
 export const twistOfFateTool = tool({
   description: `Roll the dice of fate. You MUST pre-commit to outcomes before seeing the roll.
 
-Provide a stakes string defining what happens across the full 1-100 range. Each range must end with a period.
+Provide a stakes string defining what happens across the full 1-100 range.
 
-Format: "1-20: [dire outcome]. 21-40: [setback]. 41-60: [mixed result]. 61-80: [success]. 81-100: [great fortune]."
+Format: "1-20: [dire outcome] 21-40: [setback] 41-60: [mixed result] 61-80: [success] 81-100: [great fortune]"
 
 Rules:
 - Ranges must cover exactly 1-100 with no gaps or overlaps
@@ -104,7 +114,7 @@ Rules:
     stakes: z
       .string()
       .describe(
-        "Define outcomes for the full 1-100 range. Format: '1-20: [outcome]. 21-45: [outcome]. ...' Each outcome description must end with a period.",
+        "Define outcomes for the full 1-100 range. Format: '1-20: [outcome] 21-45: [outcome] ...' Outcome text can include any punctuation.",
       ),
   }),
   execute: async ({ stakes }) => {
