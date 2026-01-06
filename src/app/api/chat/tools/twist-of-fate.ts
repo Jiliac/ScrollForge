@@ -23,7 +23,8 @@ function parseStakes(stakes: string): ParseResult | ParseError {
   // - Em-dashes, semicolons, question marks in outcome text
   // - Multiple sentences
   // - Missing trailing periods
-  const rangeRegex = /(\d+)\s*-\s*(\d+)\s*:\s*(.*?)(?=\s*\d+\s*-\s*\d+\s*:|$)/gs;
+  const rangeRegex =
+    /(\d+)\s*-\s*(\d+)\s*:\s*(.*?)(?=\s*\d+\s*-\s*\d+\s*:|$)/gs;
   const ranges: ParsedRange[] = [];
 
   let match;
