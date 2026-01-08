@@ -1,4 +1,4 @@
-import { anthropic } from "@ai-sdk/anthropic";
+import { openai } from "@ai-sdk/openai";
 import {
   convertToModelMessages,
   stepCountIs,
@@ -18,7 +18,7 @@ export async function runNarrator(opts: {
     : "";
 
   return streamText({
-    model: anthropic("claude-opus-4-5-20251101"),
+    model: openai("gpt-5.2"),
     system: (opts.gameSystem || "") + extra || undefined,
     messages: await convertToModelMessages(opts.messages),
     tools: opts.tools,

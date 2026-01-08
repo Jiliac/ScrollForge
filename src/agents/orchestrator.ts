@@ -1,6 +1,6 @@
-import { anthropic } from "@ai-sdk/anthropic";
 import { convertToModelMessages, generateText, type UIMessage } from "ai";
 import { OrchestratorDecisionSchema, type OrchestratorDecision } from "./types";
+import { openai } from "@ai-sdk/openai";
 
 const ORCHESTRATOR_SYSTEM = `You are the Orchestrator for an RPG multi-agent system.
 
@@ -25,10 +25,9 @@ export async function runOrchestrator(opts: {
     : ORCHESTRATOR_SYSTEM;
 
   const { text } = await generateText({
-    model: anthropic("claude-opus-4-5-20251101"),
+    model: openai("gpt-5.2"),
     system,
     messages: await convertToModelMessages(opts.messages),
-    temperature: 0,
     maxRetries: 1,
   });
 
