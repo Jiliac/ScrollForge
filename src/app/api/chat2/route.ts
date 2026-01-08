@@ -35,15 +35,21 @@ export async function POST(req: Request) {
     messages: allMessages,
   });
 
-  let preStepSummary: string | undefined;
+  // Run all pre-steps and collect summaries
+  const preStepResults: string[] = [];
 
-  if (decision.preStep === "world_build") {
-    const res = await runWorldBuildStub();
-    preStepSummary = res.summary;
-  } else if (decision.preStep === "faction_turn") {
-    const res = await runFactionTurnStub();
-    preStepSummary = res.summary;
+  for (const step of decision.preSteps) {
+    if (step.type === "world_build") {
+      const res = await runWorldBuildStub(step);
+      preStepResults.push(`[World Build: ${step.description}] ${res.summary}`);
+    } else if (step.type === "faction_turn") {
+      const res = await runFactionTurnStub(step);
+      preStepResults.push(`[${step.faction}] ${res.summary}`);
+    }
   }
+
+  const preStepSummary =
+    preStepResults.length > 0 ? preStepResults.join("\n\n") : undefined;
 
   const result = await runNarrator({
     gameSystem,
@@ -58,8 +64,8 @@ export async function POST(req: Request) {
         return {
           conversationId,
           orchestrator: {
-            preStep: decision.preStep,
-            reason: decision.reason,
+            preSteps: decision.preSteps,
+            reasoning: decision.reasoning,
           },
           usage: {
             inputTokens: part.totalUsage.inputTokens,

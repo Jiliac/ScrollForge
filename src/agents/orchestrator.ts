@@ -1,20 +1,20 @@
-import { convertToModelMessages, generateText, type UIMessage } from "ai";
+import { convertToModelMessages, generateObject, type UIMessage } from "ai";
 import { OrchestratorDecisionSchema, type OrchestratorDecision } from "./types";
 import { openai } from "@ai-sdk/openai";
 
 const ORCHESTRATOR_SYSTEM = `You are the Orchestrator for an RPG multi-agent system.
 
-Your job: decide whether this turn needs a synchronous pre-step before narration.
+Your job: decide what pre-steps (if any) are needed before narration.
 
-You must choose exactly one preStep:
-- "none": go straight to narration.
-- "world_build": we need new world content (new NPC/location/lore) before narration.
-- "faction_turn": time passes or off-screen factions should advance before narration.
+Pre-step types:
+- "world_build": New content is needed (NPC, location, lore) that doesn't exist yet.
+- "faction_turn": Time passes or off-screen factions should advance their goals.
 
-Return ONLY a single-line JSON object matching:
-{"preStep":"none"|"world_build"|"faction_turn","reason":"optional short reason"}
+You can request multiple pre-steps. For example:
+- Multiple factions acting during a time skip
+- World building + faction turns if the player travels somewhere new and time passes
 
-No markdown. No extra keys.`;
+Return an empty array if no pre-steps are needed and we should go straight to narration.`;
 
 export async function runOrchestrator(opts: {
   gameSystem: string;
@@ -24,19 +24,12 @@ export async function runOrchestrator(opts: {
     ? `${ORCHESTRATOR_SYSTEM}\n\n# Game System\n${opts.gameSystem}`
     : ORCHESTRATOR_SYSTEM;
 
-  const { text } = await generateText({
+  const { object } = await generateObject({
     model: openai("gpt-5.2"),
+    schema: OrchestratorDecisionSchema,
     system,
     messages: await convertToModelMessages(opts.messages),
-    maxRetries: 1,
   });
 
-  try {
-    const parsedJson = JSON.parse(text);
-    const validated = OrchestratorDecisionSchema.safeParse(parsedJson);
-    if (validated.success) return validated.data;
-    return { preStep: "none", reason: "invalid orchestrator schema" };
-  } catch {
-    return { preStep: "none", reason: "orchestrator returned non-JSON" };
-  }
+  return object;
 }
