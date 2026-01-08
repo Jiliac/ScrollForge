@@ -3,13 +3,14 @@ import {
   convertToModelMessages,
   stepCountIs,
   streamText,
+  type ToolSet,
   type UIMessage,
 } from "ai";
 
 export async function runNarrator(opts: {
   gameSystem: string;
   messages: UIMessage[];
-  tools: Record<string, unknown>;
+  tools: ToolSet;
   preStepSummary?: string;
 }) {
   const extra = opts.preStepSummary

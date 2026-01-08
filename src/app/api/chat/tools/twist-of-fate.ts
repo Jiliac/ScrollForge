@@ -24,7 +24,7 @@ function parseStakes(stakes: string): ParseResult | ParseError {
   // - Multiple sentences
   // - Missing trailing periods
   const rangeRegex =
-    /(\d+)\s*-\s*(\d+)\s*:\s*(.*?)(?=\s*\d+\s*-\s*\d+\s*:|$)/gs;
+    /(\d+)\s*-\s*(\d+)\s*:\s*([\s\S]*?)(?=\s*\d+\s*-\s*\d+\s*:|$)/g;
   const ranges: ParsedRange[] = [];
 
   let match;
