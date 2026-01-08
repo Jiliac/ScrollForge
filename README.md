@@ -1,4 +1,4 @@
-# Tales of the Golden Age (rpg-llm)
+# Scroll Forge
 
 A Next.js app for running an RPG chat experience powered by an LLM, with a “game files” directory (markdown + images) that the model can read and update via tools.
 
@@ -9,10 +9,9 @@ A Next.js app for running an RPG chat experience powered by an LLM, with a “ga
 - Node.js (recommended: 20+)
 - pnpm (recommended) or npm/yarn
 - A database (SQLite by default via Prisma)
-- API keys (depending on features you use):
+- API keys:
   - Anthropic (required for chat)
-  - Black Forest Labs (optional, for image generation)
-  - ElevenLabs (optional, for audio scripts/tools if you use them)
+  - Black Forest Labs (required for image generation)
 
 ---
 
@@ -26,12 +25,6 @@ Using pnpm:
 pnpm install
 ```
 
-Or npm:
-
-```bash
-npm install
-```
-
 ### 2) Configure environment variables
 
 Copy the example env file and edit it:
@@ -40,25 +33,20 @@ Copy the example env file and edit it:
 cp .env.example .env
 ```
 
-Minimum required:
+Required:
 
-- `DATABASE_URL` (SQLite file path)
+- `DATABASE_URL` — SQLite file path (the file will be created automatically by Prisma)
 - `ANTHROPIC_API_KEY`
-- `GAME_FILES_DIR` (path to your game content folder)
+- `BFL_API_KEY` — Black Forest Labs API key for image generation
+- `GAME_FILES_DIR` — path to your game content folder
 
 Example:
 
 ```env
 DATABASE_URL="file:/absolute/path/to/project/prisma/dev.db"
 ANTHROPIC_API_KEY="sk-ant-..."
-GAME_FILES_DIR="/absolute/path/to/your/game_files"
-```
-
-Optional (only needed if you use these features):
-
-```env
 BFL_API_KEY="bfl_..."
-ELEVEN_LABS_API_KEY="..."
+GAME_FILES_DIR="/absolute/path/to/your/game_files"
 ```
 
 ### 3) Initialize the database
@@ -184,9 +172,9 @@ Because of this, you should treat `GAME_FILES_DIR` as editable content and consi
 
 ## Troubleshooting
 
-### “BFL_API_KEY not configured”
+### "BFL_API_KEY not configured"
 
-You tried to use image generation without setting `BFL_API_KEY`. Add it to `.env` or avoid image generation tools.
+You're missing the `BFL_API_KEY` in your `.env` file. This is required for image generation.
 
 ### Images not showing up
 
