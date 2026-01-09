@@ -26,8 +26,9 @@ export const OrchestratorDecisionSchema = z.object({
     ),
   reasoning: z
     .string()
-    .optional()
-    .describe("Brief explanation of why these pre-steps are needed"),
+    .describe(
+      "Brief explanation of why these pre-steps are needed, or 'none' if going straight to narration.",
+    ),
 });
 
 export type OrchestratorDecision = z.infer<typeof OrchestratorDecisionSchema>;
