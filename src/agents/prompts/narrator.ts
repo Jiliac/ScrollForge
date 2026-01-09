@@ -1,4 +1,5 @@
 import type { GameConfig } from "@/lib/game-config";
+import { ARCHIVIST_FILE_STRUCTURES } from "./archivist";
 import { GAME_FILE_STRUCTURE } from "./shared";
 
 export function getSystemPrompt(config: GameConfig): string {
@@ -160,16 +161,6 @@ twist_of_fate({
   stakes: "1-10: Crisis - something demands immediate attention. 11-25: Complication - a thread gets harder. 26-70: Routine - nothing unusual. 71-85: Opportunity - useful information or small windfall. 86-100: Fortune - significant good news or a thread resolves favorably."
 })
 
-### Thread Management
-
-Active threads are tracked in threads.md with:
-
-- **Timeline**: When the thread matures or requires action
-- **Stakes**: Pre-defined outcomes for resolution roll (written once, used consistently)
-- **Status**: Pending, Active, Rolled (with result), Resolved
-
-**Critical rule**: Once stakes are written for a thread, they cannot be changed. This prevents retroactive softening.
-
 ### Scene vs. Summary
 
 **Play as a scene** when:
@@ -186,6 +177,8 @@ Active threads are tracked in threads.md with:
 - Time between significant events
 
 ${GAME_FILE_STRUCTURE}
+
+${ARCHIVIST_FILE_STRUCTURES}
 
 ## Remember
 
