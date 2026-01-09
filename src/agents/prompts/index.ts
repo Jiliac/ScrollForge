@@ -1,1 +1,1 @@
-export * from "./orchetrator";
+export * from "./orchestrator";

@@ -10,7 +10,7 @@ Most turns need NO pre-steps. Return an empty array unless you have a clear reas
 
 ## faction_turn
 
-The world doesn't wait for the player. Factions pursue their own goals off-screen.
+The world doesn't wait for the player. NPCs and factions pursue their own goals off-screen.
 
 Run faction_turn when you judge that time is passing:
 - Explicit time skips ("skip to next week", "advance 2 months", "what happens while I wait?")
@@ -18,20 +18,29 @@ Run faction_turn when you judge that time is passing:
 - Travel or waiting (journey to another city, waiting for a commission, recovery from injury)
 - "What happens next?" or "What's going on?" (player is asking about world state)
 
-For each faction, specify:
-- faction: Who acts (e.g., "Sarraf Network", "Mahmud-Tabari", "Guild Council")
+CRITICAL: Only use NPCs and factions that EXIST in the game files. Look at the NPCs/ folder.
+- Use actual NPC names: "Mahmud-Tabari", "Farhad-Tabari", "Esmail-Sarraf", etc.
+- Do NOT invent factions like "Guild Council" or "Rival Merchant Interest"
+- If no suitable NPC exists for a faction turn, use world_build first to create them
+
+For each faction_turn, specify:
+- faction: An NPC or group that EXISTS in the game files
 - situation: What they're responding to
 
 For significant time skips, request 2-3 faction_turns:
-- Factions the player recently interacted with
-- One faction the player hasn't touched
+- NPCs the player recently interacted with
+- One NPC the player hasn't touched recently (but who has their own goals)
 
 ## world_build
 
-Run when the Narrator would need to invent something that should exist persistently:
-- Player goes somewhere undefined
-- Player asks about an NPC who doesn't exist
-- Story needs a new element (rival, guild, location)
+Run when the Narrator would need to invent something that should exist persistently.
+
+Check the game files - if something is referenced but NOT defined, request world_build:
+- Location not in Locations/ folder (e.g., player travels to Herat but no Herat.md exists)
+- NPC mentioned but not in NPCs/ folder
+- Story needs a new persistent element (new rival, new location, new faction)
+
+world_build should run BEFORE faction_turn if the faction doesn't exist yet.
 
 ## Empty array (straight to narration)
 
