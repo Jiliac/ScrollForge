@@ -1,4 +1,5 @@
 import type { GameConfig } from "@/lib/game-config";
+import { GAME_FILE_STRUCTURE } from "./shared";
 
 export function getSystemPrompt(config: GameConfig): string {
   const { setting, player, tone, world, examples } = config;
@@ -183,6 +184,8 @@ Active threads are tracked in threads.md with:
 - Routine work (daily operations)
 - Travel without incident
 - Time between significant events
+
+${GAME_FILE_STRUCTURE}
 
 ## Remember
 

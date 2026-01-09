@@ -29,9 +29,9 @@ game_files/
 
 ### Move to code prompts
 
-- [ ] `system.md` → `src/agents/prompts/narrator.ts`
+- [x] `system.md` → `src/agents/prompts/narrator.ts`
 - [x] `style-guide.md` → `src/agents/prompts/narrator.ts` [Actually the style guide is part of the needed files]
-- [ ] `Emerging Pattern for Raw LLM RPG.md` → shared agent principles (maybe `src/agents/prompts/shared.ts`)
+- [x] `Emerging Pattern for Raw LLM RPG.md` → shared agent principles (maybe)
 
 ### Create factions.md
 
