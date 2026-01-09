@@ -15,6 +15,11 @@ export async function runOrchestrator(opts: {
     schema: OrchestratorDecisionSchema,
     system,
     messages: await convertToModelMessages(opts.messages),
+    // providerOptions: {
+    //   openai: {
+    //     reasoningEffort: "high", // "low" | "medium" | "high"
+    //   },
+    // },
   });
 
   return object;

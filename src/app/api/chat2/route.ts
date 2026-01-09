@@ -3,7 +3,7 @@ import { loadGameContext } from "@/lib/game-files";
 import { ensureConversationExists } from "@/lib/conversations";
 import { tools } from "../chat/tools";
 import { runOrchestrator } from "@/agents/orchestrator";
-import { runWorldBuildStub } from "@/agents/world-builder";
+import { runWorldAdvanceStub } from "@/agents/world-builder";
 import { runFactionTurnStub } from "@/agents/faction-turn";
 import { runNarrator } from "@/agents/narrator";
 
@@ -39,9 +39,11 @@ export async function POST(req: Request) {
   const preStepResults: string[] = [];
 
   for (const step of decision.preSteps) {
-    if (step.type === "world_build") {
-      const res = await runWorldBuildStub(step);
-      preStepResults.push(`[World Build: ${step.description}] ${res.summary}`);
+    if (step.type === "world_advance") {
+      const res = await runWorldAdvanceStub(step);
+      preStepResults.push(
+        `[World Advance: ${step.description}] ${res.summary}`,
+      );
     } else if (step.type === "faction_turn") {
       const res = await runFactionTurnStub(step);
       preStepResults.push(`[${step.faction}] ${res.summary}`);
@@ -56,6 +58,7 @@ export async function POST(req: Request) {
     messages: allMessages,
     tools,
     preStepSummary,
+    suggestedTwists: decision.suggestedTwists,
   });
 
   return result.toUIMessageStreamResponse({
@@ -65,6 +68,7 @@ export async function POST(req: Request) {
           conversationId,
           orchestrator: {
             preSteps: decision.preSteps,
+            suggestedTwists: decision.suggestedTwists,
             reasoning: decision.reasoning,
           },
           usage: {

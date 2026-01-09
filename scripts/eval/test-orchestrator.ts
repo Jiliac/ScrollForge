@@ -24,17 +24,28 @@ async function main() {
   }
 
   console.log("Loading game context...");
-  const { system: gameSystem } = await loadGameContext();
-  console.log(`Game system loaded (${gameSystem.length} chars)\n`);
+  const { system: gameSystem, context } = await loadGameContext();
+  console.log(`Game system loaded (${gameSystem.length} chars)`);
+  console.log(`Game context loaded (${context.length} chars)\n`);
 
-  // Create a minimal message history with just the user's message
-  const messages: UIMessage[] = [
-    {
-      id: "test-user-msg",
-      role: "user",
-      parts: [{ type: "text", text: userInput }],
-    },
-  ];
+  // Build messages the same way chat2/route.ts does
+  const contextMessage: UIMessage | null = context
+    ? {
+        id: "game-context",
+        role: "user",
+        parts: [{ type: "text", text: `# Game Context\n\n${context}` }],
+      }
+    : null;
+
+  const userMessage: UIMessage = {
+    id: "test-user-msg",
+    role: "user",
+    parts: [{ type: "text", text: userInput }],
+  };
+
+  const messages: UIMessage[] = contextMessage
+    ? [contextMessage, userMessage]
+    : [userMessage];
 
   console.log(`User message: "${userInput}"\n`);
   console.log("Calling orchestrator...\n");

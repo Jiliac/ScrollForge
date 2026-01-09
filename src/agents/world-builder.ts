@@ -1,15 +1,15 @@
 import type { PreStep } from "./types";
 
-export type WorldBuildResult = {
+export type WorldAdvanceResult = {
   summary: string;
 };
 
-type WorldBuildStep = Extract<PreStep, { type: "world_build" }>;
+type WorldAdvanceStep = Extract<PreStep, { type: "world_advance" }>;
 
-export async function runWorldBuildStub(
-  step: WorldBuildStep,
-): Promise<WorldBuildResult> {
+export async function runWorldAdvanceStub(
+  step: WorldAdvanceStep,
+): Promise<WorldAdvanceResult> {
   return {
-    summary: `(stub) would create: ${step.description}`,
+    summary: `(stub) would advance world: ${step.description}`,
   };
 }
