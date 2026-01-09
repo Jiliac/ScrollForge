@@ -32,31 +32,22 @@ export async function readMdFilesRecursively(
   return files;
 }
 
-export async function loadGameContext(): Promise<{
-  system: string;
-  context: string;
-}> {
+export async function loadGameContext(): Promise<string> {
   try {
     const gameFilesDir = getGameFilesDir();
     const files = await readMdFilesRecursively(gameFilesDir, gameFilesDir);
 
-    let system = "";
     const contextParts: string[] = [];
 
     for (const file of files) {
-      if (file.relativePath === "system.md") {
-        system = file.content;
-      } else {
-        contextParts.push(`## ${file.relativePath}\n\n${file.content}`);
-      }
+      // Skip config.yaml and other non-context files
+      if (file.relativePath === "config.yaml") continue;
+      contextParts.push(`## ${file.relativePath}\n\n${file.content}`);
     }
 
-    return {
-      system,
-      context: contextParts.join("\n\n---\n\n"),
-    };
+    return contextParts.join("\n\n---\n\n");
   } catch (error) {
     console.error("Error loading game context:", error);
-    return { system: "", context: "" };
+    return "";
   }
 }

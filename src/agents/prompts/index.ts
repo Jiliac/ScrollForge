@@ -1,2 +1,2 @@
-export * from "./narrator"
+export * from "./narrator";
 export * from "./orchestrator";

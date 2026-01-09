@@ -8,6 +8,8 @@ import {
 import { loadGameContext } from "@/lib/game-files";
 import { ensureConversationExists } from "@/lib/conversations";
 import { tools } from "./tools";
+import { loadGameConfig } from "@/lib/game-config";
+import { getSystemPrompt } from "@/agents/prompts";
 
 export async function POST(req: Request) {
   const {
@@ -18,7 +20,12 @@ export async function POST(req: Request) {
   // Ensure conversation exists (client generates ID, server creates record if needed)
   await ensureConversationExists(conversationId);
 
-  const { system, context } = await loadGameContext();
+  console.log("Loading game config and context...");
+  const [config, context] = await Promise.all([
+    loadGameConfig(),
+    loadGameContext(),
+  ]);
+  const system = getSystemPrompt(config);
 
   const contextMessage: UIMessage | null = context
     ? {

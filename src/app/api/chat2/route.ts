@@ -1,11 +1,13 @@
 import { type UIMessage } from "ai";
 import { loadGameContext } from "@/lib/game-files";
+import { loadGameConfig } from "@/lib/game-config";
 import { ensureConversationExists } from "@/lib/conversations";
 import { tools } from "../chat/tools";
 import { runOrchestrator } from "@/agents/orchestrator";
 import { runWorldAdvanceStub } from "@/agents/world-builder";
 import { runFactionTurnStub } from "@/agents/faction-turn";
 import { runNarrator } from "@/agents/narrator";
+import { getSystemPrompt } from "@/agents/prompts";
 
 // Allow streaming responses up to 60 seconds.
 export const maxDuration = 60;
@@ -18,7 +20,12 @@ export async function POST(req: Request) {
 
   await ensureConversationExists(conversationId);
 
-  const { system: gameSystem, context } = await loadGameContext();
+  const [config, context] = await Promise.all([
+    loadGameConfig(),
+    loadGameContext(),
+  ]);
+
+  const gameSystem = getSystemPrompt(config);
 
   const contextMessage: UIMessage | null = context
     ? {

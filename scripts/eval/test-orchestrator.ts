@@ -10,6 +10,8 @@
 import "dotenv/config";
 import { runOrchestrator } from "@/agents/orchestrator";
 import { loadGameContext } from "@/lib/game-files";
+import { loadGameConfig } from "@/lib/game-config";
+import { getSystemPrompt } from "@/agents/prompts";
 import type { UIMessage } from "ai";
 
 async function main() {
@@ -23,8 +25,12 @@ async function main() {
     process.exit(1);
   }
 
-  console.log("Loading game context...");
-  const { system: gameSystem, context } = await loadGameContext();
+  console.log("Loading game config and context...");
+  const [config, context] = await Promise.all([
+    loadGameConfig(),
+    loadGameContext(),
+  ]);
+  const gameSystem = getSystemPrompt(config);
   console.log(`Game system loaded (${gameSystem.length} chars)`);
   console.log(`Game context loaded (${context.length} chars)\n`);
 
