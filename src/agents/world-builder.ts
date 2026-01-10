@@ -39,6 +39,8 @@ export async function runWorldAdvance(
     // Extract all tool calls from all steps (with null-safe access)
     const toolCalls = (steps ?? []).flatMap((s) =>
       (s.toolCalls ?? []).map((tc) => {
+        // Debug: log the raw tool call structure
+        console.log("[DEBUG] Raw tool call:", JSON.stringify(tc, null, 2));
         const args =
           "args" in tc && typeof tc.args === "object" && tc.args !== null
             ? (tc.args as Record<string, unknown>)
