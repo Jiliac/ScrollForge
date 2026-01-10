@@ -4,6 +4,11 @@ import type { PreStep } from "./types";
 import { getFactionTurnPrompt } from "./prompts";
 import { loadGameConfig } from "@/lib/game-config";
 import { factionTools } from "@/app/api/chat/tools";
+import {
+  startAgentLog,
+  completeAgentLog,
+  failAgentLog,
+} from "@/lib/agent-logs";
 
 export type FactionTurnResult = {
   summary: string;
@@ -18,15 +23,23 @@ type FactionTurnStep = Extract<PreStep, { type: "faction_turn" }>;
 export async function runFactionTurn(
   step: FactionTurnStep,
   context: string,
+  conversationId?: string,
 ): Promise<FactionTurnResult> {
-  const config = await loadGameConfig();
-  const systemPrompt = getFactionTurnPrompt(
-    config,
-    step.faction,
-    step.situation,
-  );
+  const logId = conversationId
+    ? await startAgentLog(conversationId, "faction_turn", {
+        faction: step.faction,
+        situation: step.situation,
+      })
+    : null;
 
   try {
+    const config = await loadGameConfig();
+    const systemPrompt = getFactionTurnPrompt(
+      config,
+      step.faction,
+      step.situation,
+    );
+
     const { text, steps } = await generateText({
       model: openai("gpt-5.2"),
       system: systemPrompt,
@@ -44,7 +57,8 @@ export async function runFactionTurn(
     // Note: AI SDK uses "input" for tool call arguments, not "args"
     const toolCalls = (steps ?? []).flatMap((s) =>
       (s.toolCalls ?? []).map((tc) => {
-        const rawArgs = "input" in tc ? tc.input : "args" in tc ? tc.args : {};
+        const tcAny = tc as Record<string, unknown>;
+        const rawArgs = tcAny.input ?? tcAny.args ?? {};
         const args =
           typeof rawArgs === "object" && rawArgs !== null
             ? (rawArgs as Record<string, unknown>)
@@ -53,9 +67,17 @@ export async function runFactionTurn(
       }),
     );
 
-    return { summary: text, toolCalls };
+    const result = { summary: text, toolCalls };
+    if (logId) await completeAgentLog(logId, result);
+    return result;
   } catch (error) {
     console.error(`Error running faction turn for ${step.faction}:`, error);
+    if (logId) {
+      await failAgentLog(
+        logId,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
     throw new Error(
       `Failed to run faction turn for ${step.faction}: ${error instanceof Error ? error.message : String(error)}`,
       { cause: error },

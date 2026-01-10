@@ -50,16 +50,17 @@ function validateRequestBody(
 async function executePreSteps(
   preSteps: PreStep[],
   context: string,
+  conversationId: string,
 ): Promise<string | undefined> {
   const results: string[] = [];
 
   for (const step of preSteps) {
     try {
       if (step.type === "world_advance") {
-        const res = await runWorldAdvance(step, context);
+        const res = await runWorldAdvance(step, context, conversationId);
         results.push(`[World Advance: ${step.description}] ${res.summary}`);
       } else if (step.type === "faction_turn") {
-        const res = await runFactionTurn(step, context);
+        const res = await runFactionTurn(step, context, conversationId);
         results.push(`[${step.faction}] ${res.summary}`);
       } else {
         console.warn("executePreSteps: unsupported preStep type", step);
@@ -110,11 +111,12 @@ export async function POST(req: Request) {
     const decision = await runOrchestrator({
       gameSystem,
       messages: allMessages,
+      conversationId,
     });
 
     // Only execute pre-steps if we have context (pre-step agents need it)
     const preStepSummary = context
-      ? await executePreSteps(decision.preSteps, context)
+      ? await executePreSteps(decision.preSteps, context, conversationId)
       : undefined;
 
     const result = await runNarrator({
@@ -123,6 +125,7 @@ export async function POST(req: Request) {
       tools,
       preStepSummary,
       suggestedTwists: decision.suggestedTwists,
+      conversationId,
     });
 
     return result.toUIMessageStreamResponse({

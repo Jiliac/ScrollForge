@@ -11,6 +11,19 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum AgentType {
+  orchestrator
+  faction_turn
+  world_advance
+  narrator
+}
+
+enum AgentLogStatus {
+  running
+  completed
+  failed
+}
+
 model Image {
   id           String   @id @default(cuid())
   slug         String   @unique
@@ -22,10 +35,11 @@ model Image {
 }
 
 model Conversation {
-  id        String    @id @default(cuid())
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id        String     @id @default(cuid())
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
   messages  Message[]
+  agentLogs AgentLog[]
 }
 
 model Message {
@@ -35,4 +49,24 @@ model Message {
   role           String       // "user" | "assistant"
   parts          String       // JSON string of UIMessage parts
   createdAt      DateTime     @default(now())
+}
+
+model AgentLog {
+  id             String         @id @default(cuid())
+  conversationId String
+  conversation   Conversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  agentType      AgentType
+  status         AgentLogStatus @default(running)
+
+  input          String?        // JSON: args passed to agent
+  output         String?        // JSON: result/decision
+  error          String?        // Error message if failed
+
+  startedAt      DateTime       @default(now())
+  completedAt    DateTime?
+  durationMs     Int?
+
+  @@index([conversationId])
+  @@index([conversationId, agentType])
 }
