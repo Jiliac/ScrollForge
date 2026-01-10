@@ -41,11 +41,13 @@ export async function runFactionTurn(
     });
 
     // Extract all tool calls from all steps (with null-safe access)
+    // Note: AI SDK uses "input" for tool call arguments, not "args"
     const toolCalls = (steps ?? []).flatMap((s) =>
       (s.toolCalls ?? []).map((tc) => {
+        const rawArgs = "input" in tc ? tc.input : "args" in tc ? tc.args : {};
         const args =
-          "args" in tc && typeof tc.args === "object" && tc.args !== null
-            ? (tc.args as Record<string, unknown>)
+          typeof rawArgs === "object" && rawArgs !== null
+            ? (rawArgs as Record<string, unknown>)
             : {};
         return { toolName: tc.toolName, args };
       }),
