@@ -4,7 +4,7 @@ import { loadGameConfig } from "@/lib/game-config";
 import { ensureConversationExists } from "@/lib/conversations";
 import { tools } from "../chat/tools";
 import { runOrchestrator } from "@/agents/orchestrator";
-import { runWorldAdvanceStub } from "@/agents/world-builder";
+import { runWorldAdvance } from "@/agents/world-builder";
 import { runFactionTurn } from "@/agents/faction-turn";
 import { runNarrator } from "@/agents/narrator";
 import { getSystemPrompt } from "@/agents/prompts";
@@ -47,7 +47,7 @@ export async function POST(req: Request) {
 
   for (const step of decision.preSteps) {
     if (step.type === "world_advance") {
-      const res = await runWorldAdvanceStub(step);
+      const res = await runWorldAdvance(step, context);
       preStepResults.push(
         `[World Advance: ${step.description}] ${res.summary}`,
       );

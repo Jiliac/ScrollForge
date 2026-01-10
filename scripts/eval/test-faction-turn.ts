@@ -13,7 +13,11 @@ import "dotenv/config";
 import { runFactionTurn } from "@/agents/faction-turn";
 import { loadGameContext } from "@/lib/game-files";
 
-type FactionTurnStep = { type: "faction_turn"; faction: string; situation: string };
+type FactionTurnStep = {
+  type: "faction_turn";
+  faction: string;
+  situation: string;
+};
 
 async function main() {
   const useFile = process.argv.includes("--from-file");
@@ -26,7 +30,9 @@ async function main() {
     steps = (data.preSteps as FactionTurnStep[]).filter(
       (s) => s.type === "faction_turn",
     );
-    console.log(`Loaded ${steps.length} faction_turn steps from orchestration.json\n`);
+    console.log(
+      `Loaded ${steps.length} faction_turn steps from orchestration.json\n`,
+    );
   } else {
     const faction = process.argv[2];
     const situation = process.argv[3];
@@ -36,7 +42,7 @@ async function main() {
         "Usage: pnpm tsx scripts/eval/test-faction-turn.ts <faction> <situation>",
       );
       console.error(
-        '  or: pnpm tsx scripts/eval/test-faction-turn.ts --from-file',
+        "  or: pnpm tsx scripts/eval/test-faction-turn.ts --from-file",
       );
       console.error(
         '\nExample: pnpm tsx scripts/eval/test-faction-turn.ts "Davud Zarrin" "Day 12 evening"',

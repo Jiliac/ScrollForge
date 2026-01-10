@@ -78,13 +78,13 @@ Structure:
 
 ## Agent Implementation
 
-### world_advance agent (currently stub)
+### world_advance agent (DONE)
 
-- [ ] Implement planner-executor pattern
-- [ ] Create new content (locations, NPCs) when needed
-- [ ] Resolve maturing threads (roll dice for them)
-- [ ] Advance thread clocks based on time passed
-- [ ] Write results to game files
+- [x] Implement as single agent (not planner-executor)
+- [x] Create new content (locations, NPCs) when needed
+- [x] Resolve maturing threads (roll dice for them)
+- [x] Advance thread clocks based on time passed
+- [x] Write results to game files
 
 ### faction_turn agent (currently stub)
 
@@ -121,8 +121,8 @@ Structure:
 ### Eval scripts (started)
 
 - [x] `scripts/eval/test-orchestrator.ts` - test orchestrator decisions
-- [ ] `scripts/eval/test-faction-turn.ts` - test faction agent
-- [ ] `scripts/eval/test-world-advance.ts` - test world advance agent
+- [x] `scripts/eval/test-faction-turn.ts` - test faction agent
+- [x] `scripts/eval/test-world-advance.ts` - test world advance agent
 - [ ] `scripts/eval/test-narrator.ts` - test narrator with pre-step context
 
 ---
