@@ -8,9 +8,37 @@ import { runWorldAdvance } from "@/agents/world-builder";
 import { runFactionTurn } from "@/agents/faction-turn";
 import { runNarrator } from "@/agents/narrator";
 import { getSystemPrompt } from "@/agents/prompts";
+import type { PreStep } from "@/agents/types";
 
 // Allow streaming responses up to 60 seconds.
 export const maxDuration = 60;
+
+async function executePreSteps(
+  preSteps: PreStep[],
+  context: string,
+): Promise<string | undefined> {
+  const results: string[] = [];
+
+  for (const step of preSteps) {
+    if (step.type === "world_advance") {
+      const res = await runWorldAdvance(step, context);
+      results.push(`[World Advance: ${step.description}] ${res.summary}`);
+    } else if (step.type === "faction_turn") {
+      const res = await runFactionTurn(step, context);
+      results.push(`[${step.faction}] ${res.summary}`);
+    }
+  }
+
+  return results.length > 0 ? results.join("\n\n") : undefined;
+}
+
+function buildContextMessage(context: string): UIMessage {
+  return {
+    id: "game-context",
+    role: "user",
+    parts: [{ type: "text", text: `# Game Context\n\n${context}` }],
+  };
+}
 
 export async function POST(req: Request) {
   try {
@@ -27,41 +55,12 @@ export async function POST(req: Request) {
     ]);
 
     const gameSystem = getSystemPrompt(config);
-
-    const contextMessage: UIMessage | null = context
-      ? {
-          id: "game-context",
-          role: "user",
-          parts: [{ type: "text", text: `# Game Context\n\n${context}` }],
-        }
-      : null;
-
-    const allMessages = contextMessage
-      ? [contextMessage, ...messages]
+    const allMessages = context
+      ? [buildContextMessage(context), ...messages]
       : messages;
 
-    const decision = await runOrchestrator({
-      gameSystem,
-      messages: allMessages,
-    });
-
-    // Run all pre-steps and collect summaries
-    const preStepResults: string[] = [];
-
-    for (const step of decision.preSteps) {
-      if (step.type === "world_advance") {
-        const res = await runWorldAdvance(step, context);
-        preStepResults.push(
-          `[World Advance: ${step.description}] ${res.summary}`,
-        );
-      } else if (step.type === "faction_turn") {
-        const res = await runFactionTurn(step, context);
-        preStepResults.push(`[${step.faction}] ${res.summary}`);
-      }
-    }
-
-    const preStepSummary =
-      preStepResults.length > 0 ? preStepResults.join("\n\n") : undefined;
+    const decision = await runOrchestrator({ gameSystem, messages: allMessages });
+    const preStepSummary = await executePreSteps(decision.preSteps, context);
 
     const result = await runNarrator({
       gameSystem,

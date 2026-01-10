@@ -8,23 +8,20 @@ import {
 } from "ai";
 import type { SuggestedTwist } from "./types";
 
-export async function runNarrator(opts: {
-  gameSystem: string;
-  messages: UIMessage[];
-  tools: ToolSet;
-  preStepSummary?: string;
-  suggestedTwists?: SuggestedTwist[];
-}) {
+function buildOrchestratorContext(
+  preStepSummary?: string,
+  suggestedTwists?: SuggestedTwist[],
+): UIMessage | null {
   const parts: string[] = [];
 
-  if (opts.preStepSummary) {
+  if (preStepSummary) {
     parts.push(
-      `# Internal Pre-step Summary (do not mention this heading)\n${opts.preStepSummary}`,
+      `# What Happened Off-Screen\n${preStepSummary}`,
     );
   }
 
-  if (opts.suggestedTwists && opts.suggestedTwists.length > 0) {
-    const twistLines = opts.suggestedTwists
+  if (suggestedTwists && suggestedTwists.length > 0) {
+    const twistLines = suggestedTwists
       .map((t) => `- ${t.situation} (${t.reason})`)
       .join("\n");
     parts.push(
@@ -32,12 +29,36 @@ export async function runNarrator(opts: {
     );
   }
 
-  const extra = parts.length > 0 ? "\n\n" + parts.join("\n\n") : "";
+  if (parts.length === 0) return null;
+
+  return {
+    id: "orchestrator-context",
+    role: "user",
+    parts: [{ type: "text", text: parts.join("\n\n") }],
+  };
+}
+
+export async function runNarrator(opts: {
+  gameSystem: string;
+  messages: UIMessage[];
+  tools: ToolSet;
+  preStepSummary?: string;
+  suggestedTwists?: SuggestedTwist[];
+}) {
+  const orchestratorContext = buildOrchestratorContext(
+    opts.preStepSummary,
+    opts.suggestedTwists,
+  );
+
+  // Insert orchestrator context before the last user message
+  const messages = orchestratorContext
+    ? [...opts.messages.slice(0, -1), orchestratorContext, opts.messages.at(-1)!]
+    : opts.messages;
 
   return streamText({
     model: openai("gpt-5.2"),
-    system: (opts.gameSystem || "") + extra || undefined,
-    messages: await convertToModelMessages(opts.messages),
+    system: opts.gameSystem || undefined,
+    messages: await convertToModelMessages(messages),
     tools: opts.tools,
     stopWhen: stepCountIs(20),
   });
