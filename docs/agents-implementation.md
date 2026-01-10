@@ -31,7 +31,7 @@ Evaluated options:
 
 ## File Structure
 
-```
+```text
 src/
 ├── agents/
 │   ├── types.ts              # Shared types

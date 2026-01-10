@@ -13,78 +13,91 @@ import { getSystemPrompt } from "@/agents/prompts";
 export const maxDuration = 60;
 
 export async function POST(req: Request) {
-  const {
-    messages,
-    conversationId,
-  }: { messages: UIMessage[]; conversationId: string } = await req.json();
+  try {
+    const {
+      messages,
+      conversationId,
+    }: { messages: UIMessage[]; conversationId: string } = await req.json();
 
-  await ensureConversationExists(conversationId);
+    await ensureConversationExists(conversationId);
 
-  const [config, context] = await Promise.all([
-    loadGameConfig(),
-    loadGameContext(),
-  ]);
+    const [config, context] = await Promise.all([
+      loadGameConfig(),
+      loadGameContext(),
+    ]);
 
-  const gameSystem = getSystemPrompt(config);
+    const gameSystem = getSystemPrompt(config);
 
-  const contextMessage: UIMessage | null = context
-    ? {
-        id: "game-context",
-        role: "user",
-        parts: [{ type: "text", text: `# Game Context\n\n${context}` }],
+    const contextMessage: UIMessage | null = context
+      ? {
+          id: "game-context",
+          role: "user",
+          parts: [{ type: "text", text: `# Game Context\n\n${context}` }],
+        }
+      : null;
+
+    const allMessages = contextMessage
+      ? [contextMessage, ...messages]
+      : messages;
+
+    const decision = await runOrchestrator({
+      gameSystem,
+      messages: allMessages,
+    });
+
+    // Run all pre-steps and collect summaries
+    const preStepResults: string[] = [];
+
+    for (const step of decision.preSteps) {
+      if (step.type === "world_advance") {
+        const res = await runWorldAdvance(step, context);
+        preStepResults.push(
+          `[World Advance: ${step.description}] ${res.summary}`,
+        );
+      } else if (step.type === "faction_turn") {
+        const res = await runFactionTurn(step, context);
+        preStepResults.push(`[${step.faction}] ${res.summary}`);
       }
-    : null;
-
-  const allMessages = contextMessage ? [contextMessage, ...messages] : messages;
-
-  const decision = await runOrchestrator({
-    gameSystem,
-    messages: allMessages,
-  });
-
-  // Run all pre-steps and collect summaries
-  const preStepResults: string[] = [];
-
-  for (const step of decision.preSteps) {
-    if (step.type === "world_advance") {
-      const res = await runWorldAdvance(step, context);
-      preStepResults.push(
-        `[World Advance: ${step.description}] ${res.summary}`,
-      );
-    } else if (step.type === "faction_turn") {
-      const res = await runFactionTurn(step, context);
-      preStepResults.push(`[${step.faction}] ${res.summary}`);
     }
+
+    const preStepSummary =
+      preStepResults.length > 0 ? preStepResults.join("\n\n") : undefined;
+
+    const result = await runNarrator({
+      gameSystem,
+      messages: allMessages,
+      tools,
+      preStepSummary,
+      suggestedTwists: decision.suggestedTwists,
+    });
+
+    return result.toUIMessageStreamResponse({
+      messageMetadata: ({ part }) => {
+        if (part.type === "finish") {
+          return {
+            conversationId,
+            orchestrator: {
+              preSteps: decision.preSteps,
+              suggestedTwists: decision.suggestedTwists,
+              reasoning: decision.reasoning,
+            },
+            usage: {
+              inputTokens: part.totalUsage.inputTokens,
+              outputTokens: part.totalUsage.outputTokens,
+              totalTokens: part.totalUsage.totalTokens,
+            },
+          };
+        }
+      },
+    });
+  } catch (error) {
+    console.error("Error in /api/chat2:", error);
+    return new Response(
+      JSON.stringify({
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      }),
+      { status: 500, headers: { "Content-Type": "application/json" } },
+    );
   }
-
-  const preStepSummary =
-    preStepResults.length > 0 ? preStepResults.join("\n\n") : undefined;
-
-  const result = await runNarrator({
-    gameSystem,
-    messages: allMessages,
-    tools,
-    preStepSummary,
-    suggestedTwists: decision.suggestedTwists,
-  });
-
-  return result.toUIMessageStreamResponse({
-    messageMetadata: ({ part }) => {
-      if (part.type === "finish") {
-        return {
-          conversationId,
-          orchestrator: {
-            preSteps: decision.preSteps,
-            suggestedTwists: decision.suggestedTwists,
-            reasoning: decision.reasoning,
-          },
-          usage: {
-            inputTokens: part.totalUsage.inputTokens,
-            outputTokens: part.totalUsage.outputTokens,
-            totalTokens: part.totalUsage.totalTokens,
-          },
-        };
-      }
-    },
-  });
 }

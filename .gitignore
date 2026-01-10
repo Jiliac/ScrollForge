@@ -44,3 +44,6 @@ next-env.d.ts
 .claude
 
 /src/generated/prisma
+
+# Letta local state
+.letta/settings.local.json

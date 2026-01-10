@@ -22,28 +22,35 @@ export async function runWorldAdvance(
   const config = await loadGameConfig();
   const systemPrompt = getWorldAdvancePrompt(config, step.description);
 
-  const { text, steps } = await generateText({
-    model: openai("gpt-5.2"),
-    system: systemPrompt,
-    messages: [
-      {
-        role: "user",
-        content: `# Game Context\n\n${context}\n\n---\n\nAdvance the world: ${step.description}`,
-      },
-    ],
-    tools: worldAdvanceTools,
-    stopWhen: stepCountIs(5),
-  });
+  try {
+    const { text, steps } = await generateText({
+      model: openai("gpt-5.2"),
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: `# Game Context\n\n${context}\n\n---\n\nAdvance the world: ${step.description}`,
+        },
+      ],
+      tools: worldAdvanceTools,
+      stopWhen: stepCountIs(5),
+    });
 
-  // Extract all tool calls from all steps
-  const toolCalls = steps.flatMap((s) =>
-    s.toolCalls.map((tc) => ({
-      toolName: tc.toolName,
-      args: "args" in tc ? (tc.args as Record<string, unknown>) : {},
-    })),
-  );
+    // Extract all tool calls from all steps
+    const toolCalls = steps.flatMap((s) =>
+      s.toolCalls.map((tc) => ({
+        toolName: tc.toolName,
+        args: "args" in tc ? (tc.args as Record<string, unknown>) : {},
+      })),
+    );
 
-  return { summary: text, toolCalls };
+    return { summary: text, toolCalls };
+  } catch (error) {
+    console.error(`Error running world advance:`, error);
+    throw new Error(
+      `Failed to run world advance: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 
 // Keep stub for backwards compatibility during transition

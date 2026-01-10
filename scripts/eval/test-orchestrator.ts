@@ -19,9 +19,11 @@ async function main() {
 
   if (!userInput) {
     console.error(
-      "Usage: pnpm tsx scripts/test-orchestrator.ts <user message>",
+      "Usage: pnpm tsx scripts/eval/test-orchestrator.ts <user message>",
     );
-    console.error('Example: pnpm tsx scripts/test-orchestrator.ts "End day 6"');
+    console.error(
+      'Example: pnpm tsx scripts/eval/test-orchestrator.ts "End day 6"',
+    );
     process.exit(1);
   }
 

@@ -26,28 +26,35 @@ export async function runFactionTurn(
     step.situation,
   );
 
-  const { text, steps } = await generateText({
-    model: openai("gpt-5.2"),
-    system: systemPrompt,
-    messages: [
-      {
-        role: "user",
-        content: `# Game Context\n\n${context}\n\n---\n\nYou are ${step.faction}. What do you do?`,
-      },
-    ],
-    tools: factionTools,
-    stopWhen: stepCountIs(5),
-  });
+  try {
+    const { text, steps } = await generateText({
+      model: openai("gpt-5.2"),
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: `# Game Context\n\n${context}\n\n---\n\nYou are ${step.faction}. What do you do?`,
+        },
+      ],
+      tools: factionTools,
+      stopWhen: stepCountIs(5),
+    });
 
-  // Extract all tool calls from all steps
-  const toolCalls = steps.flatMap((s) =>
-    s.toolCalls.map((tc) => ({
-      toolName: tc.toolName,
-      args: "args" in tc ? (tc.args as Record<string, unknown>) : {},
-    })),
-  );
+    // Extract all tool calls from all steps
+    const toolCalls = steps.flatMap((s) =>
+      s.toolCalls.map((tc) => ({
+        toolName: tc.toolName,
+        args: "args" in tc ? (tc.args as Record<string, unknown>) : {},
+      })),
+    );
 
-  return { summary: text, toolCalls };
+    return { summary: text, toolCalls };
+  } catch (error) {
+    console.error(`Error running faction turn for ${step.faction}:`, error);
+    throw new Error(
+      `Failed to run faction turn for ${step.faction}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
 }
 
 // Keep stub for backwards compatibility during transition
