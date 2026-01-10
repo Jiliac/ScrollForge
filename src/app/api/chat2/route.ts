@@ -5,7 +5,7 @@ import { ensureConversationExists } from "@/lib/conversations";
 import { tools } from "../chat/tools";
 import { runOrchestrator } from "@/agents/orchestrator";
 import { runWorldAdvanceStub } from "@/agents/world-builder";
-import { runFactionTurnStub } from "@/agents/faction-turn";
+import { runFactionTurn } from "@/agents/faction-turn";
 import { runNarrator } from "@/agents/narrator";
 import { getSystemPrompt } from "@/agents/prompts";
 
@@ -52,7 +52,7 @@ export async function POST(req: Request) {
         `[World Advance: ${step.description}] ${res.summary}`,
       );
     } else if (step.type === "faction_turn") {
-      const res = await runFactionTurnStub(step);
+      const res = await runFactionTurn(step, context);
       preStepResults.push(`[${step.faction}] ${res.summary}`);
     }
   }

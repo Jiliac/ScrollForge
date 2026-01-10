@@ -33,14 +33,13 @@ Keep a table at the bottom:
 
 export const FACTIONS_FILE_STRUCTURE = `## factions.md Structure
 
-Each faction has members, goals, and clocks tracking progress toward those goals.
+Each faction has members, goals, and relationships. The faction_turn agent plays them when time passes.
 
 \`\`\`markdown
 ## [Faction Name] ([Type])
 
 **Members:** [NPC-1], [NPC-2], ...
 **Goal:** [What they're working toward]
-**Clock:** X/Y toward [specific outcome]
 
 ### Relationships
 - Allied with: [faction/NPC]
@@ -51,11 +50,7 @@ Each faction has members, goals, and clocks tracking progress toward those goals
 - [Date]: [What they did]
 \`\`\`
 
-### Faction Clock Rules
-
-- **Advance clocks** during faction turns (when time passes off-screen)
-- **When clock fills:** The faction achieves their goal or forces a confrontation
-- **Goals can change** after a clock resolves — factions adapt`;
+Factions pursue their goals actively through faction_turn — they don't need clocks.`;
 
 export const ARCHIVIST_FILE_STRUCTURES = `${THREADS_FILE_STRUCTURE}
 

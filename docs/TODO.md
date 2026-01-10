@@ -72,6 +72,8 @@ Structure:
 - Stakes: "1-20: ..."
 ```
 
+[Note: Done. Encoded in the system promtps, and migrated the existing files.]
+
 ---
 
 ## Agent Implementation
@@ -89,7 +91,7 @@ Structure:
 - [ ] Implement faction decision-making
 - [ ] Read faction goals from factions.md
 - [ ] Produce "what did faction X do" summary
-- [ ] Pass results as context to narrator (not instructions)
+- [ ] ~~Pass results as context to narrator (not instructions)~~
 
 ### Narrator improvements
 
