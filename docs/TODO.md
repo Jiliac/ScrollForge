@@ -88,16 +88,16 @@ Structure:
 
 ### faction_turn agent (currently stub)
 
-- [ ] Implement faction decision-making
-- [ ] Read faction goals from factions.md
-- [ ] Produce "what did faction X do" summary
-- [ ] ~~Pass results as context to narrator (not instructions)~~
+- [x] Implement faction decision-making
+- [x] Read faction goals from factions.md
+- [x] Produce "what did faction X do" summary
+- [x] ~~Pass results as context to narrator (not instructions)~~
 
 ### Narrator improvements
 
-- [ ] Move system.md content to code prompt
-- [ ] Move style-guide.md content to code prompt
-- [ ] Better integration with pre-step summaries
+- [x] Move system.md content to code prompt
+- [x] Move style-guide.md content to code prompt
+- [x] Better integration with pre-step summaries
 
 ---
 

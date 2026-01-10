@@ -7,6 +7,10 @@ import { factionTools } from "@/app/api/chat/tools";
 
 export type FactionTurnResult = {
   summary: string;
+  toolCalls: Array<{
+    toolName: string;
+    args: Record<string, unknown>;
+  }>;
 };
 
 type FactionTurnStep = Extract<PreStep, { type: "faction_turn" }>;
@@ -22,7 +26,7 @@ export async function runFactionTurn(
     step.situation,
   );
 
-  const { text } = await generateText({
+  const { text, steps } = await generateText({
     model: openai("gpt-5.2"),
     system: systemPrompt,
     messages: [
@@ -35,7 +39,15 @@ export async function runFactionTurn(
     stopWhen: stepCountIs(5),
   });
 
-  return { summary: text };
+  // Extract all tool calls from all steps
+  const toolCalls = steps.flatMap((s) =>
+    s.toolCalls.map((tc) => ({
+      toolName: tc.toolName,
+      args: "args" in tc ? (tc.args as Record<string, unknown>) : {},
+    })),
+  );
+
+  return { summary: text, toolCalls };
 }
 
 // Keep stub for backwards compatibility during transition
@@ -44,5 +56,6 @@ export async function runFactionTurnStub(
 ): Promise<FactionTurnResult> {
   return {
     summary: `(stub) ${step.faction} would respond to: ${step.situation}`,
+    toolCalls: [],
   };
 }

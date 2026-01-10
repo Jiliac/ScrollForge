@@ -12,9 +12,8 @@
 import "dotenv/config";
 import { runFactionTurn } from "@/agents/faction-turn";
 import { loadGameContext } from "@/lib/game-files";
-import type { PreStep } from "@/agents/types";
 
-type FactionTurnStep = Extract<PreStep, { type: "faction_turn" }>;
+type FactionTurnStep = { type: "faction_turn"; faction: string; situation: string };
 
 async function main() {
   const useFile = process.argv.includes("--from-file");
@@ -62,7 +61,15 @@ async function main() {
     const result = await runFactionTurn(step, context);
     const elapsed = Date.now() - start;
 
-    console.log("\n--- Result ---");
+    if (result.toolCalls.length > 0) {
+      console.log("\n--- Tool Calls ---");
+      for (const tc of result.toolCalls) {
+        console.log(`\n[${tc.toolName}]`);
+        console.log(JSON.stringify(tc.args, null, 2));
+      }
+    }
+
+    console.log("\n--- Summary ---");
     console.log(result.summary);
     console.log(`\n(${elapsed}ms)\n`);
   }
