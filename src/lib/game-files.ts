@@ -39,9 +39,11 @@ export async function loadGameContext(): Promise<string> {
 
     const contextParts: string[] = [];
 
+    // Files that are prompts/config, not game context
+    const SKIP_FILES = new Set(["config.yaml", "style-guide.md", "system.md"]);
+
     for (const file of files) {
-      // Skip config.yaml and other non-context files
-      if (file.relativePath === "config.yaml") continue;
+      if (SKIP_FILES.has(file.relativePath)) continue;
       contextParts.push(`## ${file.relativePath}\n\n${file.content}`);
     }
 

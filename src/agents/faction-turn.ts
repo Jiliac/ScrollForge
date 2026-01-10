@@ -42,10 +42,13 @@ export async function runFactionTurn(
 
     // Extract all tool calls from all steps
     const toolCalls = steps.flatMap((s) =>
-      s.toolCalls.map((tc) => ({
-        toolName: tc.toolName,
-        args: "args" in tc ? (tc.args as Record<string, unknown>) : {},
-      })),
+      s.toolCalls.map((tc) => {
+        const args =
+          "args" in tc && typeof tc.args === "object" && tc.args !== null
+            ? (tc.args as Record<string, unknown>)
+            : {};
+        return { toolName: tc.toolName, args };
+      }),
     );
 
     return { summary: text, toolCalls };

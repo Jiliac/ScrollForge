@@ -15,9 +15,7 @@ function buildOrchestratorContext(
   const parts: string[] = [];
 
   if (preStepSummary) {
-    parts.push(
-      `# What Happened Off-Screen\n${preStepSummary}`,
-    );
+    parts.push(`# What Happened Off-Screen\n${preStepSummary}`);
   }
 
   if (suggestedTwists && suggestedTwists.length > 0) {
@@ -52,7 +50,11 @@ export async function runNarrator(opts: {
 
   // Insert orchestrator context before the last user message
   const messages = orchestratorContext
-    ? [...opts.messages.slice(0, -1), orchestratorContext, opts.messages.at(-1)!]
+    ? [
+        ...opts.messages.slice(0, -1),
+        orchestratorContext,
+        opts.messages.at(-1)!,
+      ]
     : opts.messages;
 
   return streamText({

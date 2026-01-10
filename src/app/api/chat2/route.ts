@@ -59,7 +59,10 @@ export async function POST(req: Request) {
       ? [buildContextMessage(context), ...messages]
       : messages;
 
-    const decision = await runOrchestrator({ gameSystem, messages: allMessages });
+    const decision = await runOrchestrator({
+      gameSystem,
+      messages: allMessages,
+    });
     const preStepSummary = await executePreSteps(decision.preSteps, context);
 
     const result = await runNarrator({

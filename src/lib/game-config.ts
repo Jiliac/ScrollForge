@@ -1,31 +1,28 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { parse as parseYaml } from "yaml";
+import { z } from "zod";
 import { getGameFilesDir } from "./game-files";
 
-export interface GameConfig {
-  setting: {
-    name: string;
-    era: string;
-  };
-  player: {
-    name: string;
-    role: string;
-  };
-  tone: {
-    style_inspiration: string;
-    keywords: string[];
-  };
-  world: {
-    institutions: string[];
-    location_types: string[];
-    atmosphere: string;
-  };
-  examples: {
-    npc_warning: string;
-    player_action: string;
-  };
-}
+const GameConfigSchema = z.object({
+  setting: z.object({ name: z.string(), era: z.string() }),
+  player: z.object({ name: z.string(), role: z.string() }),
+  tone: z.object({
+    style_inspiration: z.string(),
+    keywords: z.array(z.string()),
+  }),
+  world: z.object({
+    institutions: z.array(z.string()),
+    location_types: z.array(z.string()),
+    atmosphere: z.string(),
+  }),
+  examples: z.object({
+    npc_warning: z.string(),
+    player_action: z.string(),
+  }),
+});
+
+export type GameConfig = z.infer<typeof GameConfigSchema>;
 
 export async function loadGameConfig(): Promise<GameConfig> {
   const gameFilesDir = getGameFilesDir();
@@ -33,10 +30,11 @@ export async function loadGameConfig(): Promise<GameConfig> {
 
   try {
     const content = await fs.readFile(configPath, "utf-8");
-    return parseYaml(content) as GameConfig;
+    const yamlContent = parseYaml(content);
+    return GameConfigSchema.parse(yamlContent);
   } catch (error) {
-    console.error("Error loading game config:", error);
-    // Return a default config if file doesn't exist
+    console.error("Error loading or parsing game config:", error);
+    // Return a default config if file doesn't exist or is invalid
     return getDefaultConfig();
   }
 }
