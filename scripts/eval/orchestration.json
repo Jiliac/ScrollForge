@@ -1,0 +1,21 @@
+{
+  "preSteps": [
+    {
+      "type": "faction_turn",
+      "faction": "Davud Zarrin",
+      "situation": "Day 12 (Day 6) evening into night — after Tahir rests; what moves or conversations ripple through the Sabbaghan"
+    },
+    {
+      "type": "faction_turn",
+      "faction": "Mahmud Tabari",
+      "situation": "Day 12 evening into night — monitoring commission progress and any rumors about Tahir/Bahram/Herat"
+    },
+    {
+      "type": "faction_turn",
+      "faction": "Hasan ibn Yusuf",
+      "situation": "Day 12 evening into night — market and workshop inspections schedule; any note from governor’s tax inquiry"
+    }
+  ],
+  "suggestedTwists": [],
+  "reasoning": "Player is explicitly ending the day and sleeping; time advances to overnight. Off-screen actors likely react: Davud’s faction to gossip/position, Mahmud to track production/rumors, and the muhtasib as the visible arm of regulation amid a tax inquiry."
+}

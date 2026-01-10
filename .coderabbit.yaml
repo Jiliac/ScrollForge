@@ -1,0 +1,58 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+language: "en-US"
+early_access: false
+enable_free_tier: true
+
+reviews:
+  profile: "chill"
+  request_changes_workflow: false
+  high_level_summary: true
+  high_level_summary_placeholder: "@coderabbitai summary"
+  review_status: true
+  commit_status: true
+  collapse_walkthrough: false
+  changed_files_summary: true
+  sequence_diagrams: true
+  poem: false
+
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    drafts: false
+
+  path_filters:
+    - "!**/node_modules/**"
+    - "!**/dist/**"
+    - "!**/.next/**"
+    - "!**/pnpm-lock.yaml"
+    - "!**/*.lock"
+
+  path_instructions:
+    - path: "src/**"
+      instructions: "Review for TypeScript best practices, proper error handling, and React hook usage where applicable."
+    - path: "scripts/**"
+      instructions: "Review scripts for proper error handling and ensure they follow project conventions."
+    - path: "prisma/**"
+      instructions: "Review database schema changes for data integrity, proper indexing, and migration safety."
+
+  tools:
+    eslint:
+      enabled: true
+    biome:
+      enabled: false
+    shellcheck:
+      enabled: true
+    markdownlint:
+      enabled: true
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  opt_out: false
+  learnings:
+    scope: "auto"
+  issues:
+    scope: "auto"
+  pull_requests:
+    scope: "auto"

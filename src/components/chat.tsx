@@ -56,7 +56,7 @@ export function ChatSection({
   const transport = useMemo(
     () =>
       new DefaultChatTransport({
-        api: "/api/chat",
+        api: "/api/chat2",
         body: { conversationId },
       }),
     [conversationId],

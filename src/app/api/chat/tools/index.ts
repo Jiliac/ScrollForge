@@ -17,3 +17,20 @@ export const tools = {
   create_image: createImageTool,
   twist_of_fate: twistOfFateTool,
 };
+
+// Faction tools: no twist_of_fate (factions have agency, not randomness)
+export const factionTools = {
+  write_file: writeFileTool,
+  edit_file: editFileTool,
+  search_image: searchImageTool,
+  create_image: createImageTool,
+};
+
+// World advance tools: includes twist_of_fate for thread resolution
+export const worldAdvanceTools = {
+  write_file: writeFileTool,
+  edit_file: editFileTool,
+  search_image: searchImageTool,
+  create_image: createImageTool,
+  twist_of_fate: twistOfFateTool,
+};
