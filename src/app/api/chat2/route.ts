@@ -13,6 +13,40 @@ import type { PreStep } from "@/agents/types";
 // Allow streaming responses up to 60 seconds.
 export const maxDuration = 60;
 
+function isDev(): boolean {
+  return process.env.NODE_ENV === "development";
+}
+
+type ChatRequestBody = {
+  messages: UIMessage[];
+  conversationId: string;
+};
+
+function validateRequestBody(
+  body: unknown,
+):
+  | { success: true; data: ChatRequestBody }
+  | { success: false; error: string } {
+  if (typeof body !== "object" || body === null) {
+    return { success: false, error: "Invalid request body" };
+  }
+
+  const { messages, conversationId } = body as Record<string, unknown>;
+
+  if (!conversationId || typeof conversationId !== "string") {
+    return { success: false, error: "Missing or invalid conversationId" };
+  }
+
+  if (!messages || !Array.isArray(messages)) {
+    return { success: false, error: "Missing or invalid messages" };
+  }
+
+  return {
+    success: true,
+    data: { messages: messages as UIMessage[], conversationId },
+  };
+}
+
 async function executePreSteps(
   preSteps: PreStep[],
   context: string,
@@ -20,12 +54,19 @@ async function executePreSteps(
   const results: string[] = [];
 
   for (const step of preSteps) {
-    if (step.type === "world_advance") {
-      const res = await runWorldAdvance(step, context);
-      results.push(`[World Advance: ${step.description}] ${res.summary}`);
-    } else if (step.type === "faction_turn") {
-      const res = await runFactionTurn(step, context);
-      results.push(`[${step.faction}] ${res.summary}`);
+    try {
+      if (step.type === "world_advance") {
+        const res = await runWorldAdvance(step, context);
+        results.push(`[World Advance: ${step.description}] ${res.summary}`);
+      } else if (step.type === "faction_turn") {
+        const res = await runFactionTurn(step, context);
+        results.push(`[${step.faction}] ${res.summary}`);
+      } else {
+        console.warn("executePreSteps: unsupported preStep type", step);
+      }
+    } catch (err) {
+      console.error("executePreSteps: failed preStep", step, err);
+      results.push(`[PreStep Failed: ${step.type}]`);
     }
   }
 
@@ -42,10 +83,17 @@ function buildContextMessage(context: string): UIMessage {
 
 export async function POST(req: Request) {
   try {
-    const {
-      messages,
-      conversationId,
-    }: { messages: UIMessage[]; conversationId: string } = await req.json();
+    const body = await req.json();
+    const validation = validateRequestBody(body);
+
+    if (!validation.success) {
+      return new Response(JSON.stringify({ error: validation.error }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const { messages, conversationId } = validation.data;
 
     await ensureConversationExists(conversationId);
 
@@ -63,7 +111,11 @@ export async function POST(req: Request) {
       gameSystem,
       messages: allMessages,
     });
-    const preStepSummary = await executePreSteps(decision.preSteps, context);
+
+    // Only execute pre-steps if we have context (pre-step agents need it)
+    const preStepSummary = context
+      ? await executePreSteps(decision.preSteps, context)
+      : undefined;
 
     const result = await runNarrator({
       gameSystem,
@@ -81,7 +133,8 @@ export async function POST(req: Request) {
             orchestrator: {
               preSteps: decision.preSteps,
               suggestedTwists: decision.suggestedTwists,
-              reasoning: decision.reasoning,
+              // Only expose reasoning in development (may leak system prompt details)
+              ...(isDev() && { reasoning: decision.reasoning }),
             },
             usage: {
               inputTokens: part.totalUsage.inputTokens,
@@ -97,7 +150,10 @@ export async function POST(req: Request) {
     return new Response(
       JSON.stringify({
         error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        // Only expose error details in development
+        ...(isDev() && {
+          message: error instanceof Error ? error.message : "Unknown error",
+        }),
       }),
       { status: 500, headers: { "Content-Type": "application/json" } },
     );

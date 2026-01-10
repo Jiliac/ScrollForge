@@ -36,9 +36,9 @@ export async function runWorldAdvance(
       stopWhen: stepCountIs(5),
     });
 
-    // Extract all tool calls from all steps
-    const toolCalls = steps.flatMap((s) =>
-      s.toolCalls.map((tc) => {
+    // Extract all tool calls from all steps (with null-safe access)
+    const toolCalls = (steps ?? []).flatMap((s) =>
+      (s.toolCalls ?? []).map((tc) => {
         const args =
           "args" in tc && typeof tc.args === "object" && tc.args !== null
             ? (tc.args as Record<string, unknown>)
@@ -52,6 +52,7 @@ export async function runWorldAdvance(
     console.error(`Error running world advance:`, error);
     throw new Error(
       `Failed to run world advance: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
     );
   }
 }

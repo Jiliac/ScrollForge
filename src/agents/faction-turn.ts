@@ -40,9 +40,9 @@ export async function runFactionTurn(
       stopWhen: stepCountIs(5),
     });
 
-    // Extract all tool calls from all steps
-    const toolCalls = steps.flatMap((s) =>
-      s.toolCalls.map((tc) => {
+    // Extract all tool calls from all steps (with null-safe access)
+    const toolCalls = (steps ?? []).flatMap((s) =>
+      (s.toolCalls ?? []).map((tc) => {
         const args =
           "args" in tc && typeof tc.args === "object" && tc.args !== null
             ? (tc.args as Record<string, unknown>)
@@ -56,6 +56,7 @@ export async function runFactionTurn(
     console.error(`Error running faction turn for ${step.faction}:`, error);
     throw new Error(
       `Failed to run faction turn for ${step.faction}: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
     );
   }
 }
