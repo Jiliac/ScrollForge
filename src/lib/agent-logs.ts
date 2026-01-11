@@ -1,6 +1,15 @@
 import { prisma } from "./prisma";
 import type { AgentType, AgentLog } from "@/generated/prisma/client";
 
+function safeJsonParse(str: string | null): Record<string, unknown> | null {
+  if (!str) return null;
+  try {
+    return JSON.parse(str);
+  } catch {
+    return null;
+  }
+}
+
 export type AgentLogEntry = {
   id: string;
   conversationId: string;
@@ -20,8 +29,8 @@ function dbToEntry(log: AgentLog): AgentLogEntry {
     conversationId: log.conversationId,
     agentType: log.agentType,
     status: log.status,
-    input: log.input ? JSON.parse(log.input) : null,
-    output: log.output ? JSON.parse(log.output) : null,
+    input: safeJsonParse(log.input),
+    output: safeJsonParse(log.output),
     error: log.error,
     startedAt: log.startedAt,
     completedAt: log.completedAt,
@@ -53,8 +62,13 @@ export async function completeAgentLog(
     select: { startedAt: true },
   });
 
+  if (!log) {
+    console.warn(`completeAgentLog: log ${logId} not found, skipping`);
+    return;
+  }
+
   const now = new Date();
-  const durationMs = log ? now.getTime() - log.startedAt.getTime() : null;
+  const durationMs = now.getTime() - log.startedAt.getTime();
 
   await prisma.agentLog.update({
     where: { id: logId },
@@ -76,8 +90,13 @@ export async function failAgentLog(
     select: { startedAt: true },
   });
 
+  if (!log) {
+    console.warn(`failAgentLog: log ${logId} not found, skipping`);
+    return;
+  }
+
   const now = new Date();
-  const durationMs = log ? now.getTime() - log.startedAt.getTime() : null;
+  const durationMs = now.getTime() - log.startedAt.getTime();
 
   await prisma.agentLog.update({
     where: { id: logId },
