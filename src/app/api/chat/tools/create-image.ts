@@ -14,23 +14,27 @@ FLUX weighs earlier information more heavily. Structure prompts as:
 [STYLE] + [SUBJECT] + [ACTION/POSE] + [SETTING] + [LIGHTING/MOOD]
 
 ## Style Consistency
-ALWAYS start prompts with this style base for visual consistency:
-"Persian miniature painting style, Seljuk-era manuscript aesthetic. Rich palette: deep indigo, madder crimson, saffron gold, turquoise accents on warm earth tones. Flat perspective with decorative patterns on textiles. Warm golden light."
+Read the game's style-guide.md for the visual style base to use. Every prompt MUST start with the style base from that file to maintain visual consistency across all images.
+
+If style-guide.md has no FLUX prompt template, use these defaults:
+- Color palette from the guide
+- Architecture/environment details from the guide
+- Character depiction guidelines from the guide
 
 ## Reference Images (reference_slugs)
 - Use ONLY for character consistency (same person in different scene)
 - Use ONE ref maximum - multiple refs cause feature mixing
 - When using a ref, prompt MUST explicitly state preservation:
-  "The same man from the reference image, preserve his exact facial features, beard, and expression. Change the setting to: [new scene]"
+  "The same person from the reference image, preserve exact facial features and expression. Change the setting to: [new scene]"
 - Do NOT use refs for style consistency - use the style base instead
 - Do NOT use refs when generating new characters
 
 ## Prompt Examples
 NEW CHARACTER (no ref):
-"Persian miniature painting style, Seljuk-era aesthetic. Portrait of a master dyer, age 35, close-cropped black beard, weathered tan skin, strong build. Wearing indigo-stained work robes. Confident, determined expression. Warm golden light, decorative border."
+"[Style base from style-guide.md]. Portrait of [character description]. [Clothing/appearance]. [Expression]. [Lighting], [composition]."
 
 EXISTING CHARACTER IN NEW SCENE (with ref):
-"Persian miniature painting style. The same man from reference, preserve exact facial features and beard. Change setting to: busy workshop interior, copper vats steaming, colored cloth hanging. Morning light through doorway."`,
+"[Style base]. The same person from reference, preserve exact facial features. Change setting to: [new environment]. [Lighting/atmosphere]."`,
   inputSchema: z.object({
     slug: z
       .string()
