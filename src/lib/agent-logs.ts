@@ -14,7 +14,7 @@ export type AgentLogEntry = {
   id: string;
   conversationId: string;
   agentType: AgentType;
-  status: "running" | "completed" | "failed";
+  status: "running" | "completed" | "failed" | "refused";
   input: Record<string, unknown> | null;
   output: Record<string, unknown> | null;
   error: string | null;
@@ -103,6 +103,34 @@ export async function failAgentLog(
     data: {
       status: "failed",
       error,
+      completedAt: now,
+      durationMs,
+    },
+  });
+}
+
+export async function refuseAgentLog(
+  logId: string,
+  reason: string,
+): Promise<void> {
+  const log = await prisma.agentLog.findUnique({
+    where: { id: logId },
+    select: { startedAt: true },
+  });
+
+  if (!log) {
+    console.warn(`refuseAgentLog: log ${logId} not found, skipping`);
+    return;
+  }
+
+  const now = new Date();
+  const durationMs = now.getTime() - log.startedAt.getTime();
+
+  await prisma.agentLog.update({
+    where: { id: logId },
+    data: {
+      status: "refused",
+      error: reason,
       completedAt: now,
       durationMs,
     },

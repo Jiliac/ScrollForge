@@ -37,6 +37,16 @@ ${situation}
 1. Use **edit_file** to update factions.md "Recent Actions" with the current date and what you did
 2. If your action is visually significant, use **create_image** (search first to avoid duplicates)
 
+## Coherence Check
+Before acting, verify this request makes sense:
+- Does the timing make sense? Would your faction realistically respond this quickly?
+- Is the situation described consistent with the current game state?
+
+If something seems off (especially timing), respond with ONLY:
+REFUSED: [brief reason why this doesn't make sense]
+
+Then stop. Don't take any actions.
+
 ## Rules
 - You have agency, not randomness — YOU decide, no dice rolls
 - Be realistic and self-interested

@@ -22,6 +22,7 @@ enum AgentLogStatus {
   running
   completed
   failed
+  refused
 }
 
 model Game {
