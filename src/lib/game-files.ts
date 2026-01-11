@@ -1,10 +1,33 @@
 import { promises as fs } from "fs";
 import path from "path";
+import { prisma } from "./prisma";
 
 export function getGameFilesDir(): string {
   return (
     process.env.GAME_FILES_DIR || path.join(process.cwd(), "game_files_local")
   );
+}
+
+// Get or create the Game record for current GAME_FILES_DIR
+export async function getCurrentGame(): Promise<{
+  id: string;
+  filesDir: string;
+}> {
+  const filesDir = getGameFilesDir();
+
+  const game = await prisma.game.upsert({
+    where: { filesDir },
+    update: {},
+    create: { filesDir },
+  });
+
+  return game;
+}
+
+// Convenience: just get the ID
+export async function getCurrentGameId(): Promise<string> {
+  const game = await getCurrentGame();
+  return game.id;
 }
 
 export async function readMdFilesRecursively(

@@ -39,9 +39,16 @@ async function main() {
     let migrated = 0;
     let skipped = 0;
 
+    // Get or create game for current GAME_FILES_DIR
+    const game = await prisma.game.upsert({
+      where: { filesDir: GAME_FILES_DIR },
+      update: {},
+      create: { filesDir: GAME_FILES_DIR },
+    });
+
     for (const image of index.images) {
-      const existing = await prisma.image.findUnique({
-        where: { slug: image.slug },
+      const existing = await prisma.image.findFirst({
+        where: { gameId: game.id, slug: image.slug },
       });
 
       if (existing) {
@@ -52,6 +59,7 @@ async function main() {
 
       await prisma.image.create({
         data: {
+          gameId: game.id,
           slug: image.slug,
           file: image.file,
           prompt: image.prompt,

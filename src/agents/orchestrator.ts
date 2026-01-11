@@ -16,8 +16,8 @@ export async function runOrchestrator(opts: {
 }): Promise<OrchestratorDecision> {
   const logId = opts.conversationId
     ? await startAgentLog(opts.conversationId, "orchestrator", {
-      messageCount: opts.messages.length,
-    })
+        messageCount: opts.messages.length,
+      })
     : null;
 
   try {
