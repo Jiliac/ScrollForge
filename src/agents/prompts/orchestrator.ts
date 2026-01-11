@@ -70,5 +70,6 @@ The Narrator will consider calling twist_of_fate for flagged situations.
 - Player takes an action with clear outcome
 - Questions about existing content
 - Routine interactions with known NPCs
+- **Image requests** - the Narrator handles image search/generation directly via tools
 
 ${GAME_FILE_STRUCTURE}`;
