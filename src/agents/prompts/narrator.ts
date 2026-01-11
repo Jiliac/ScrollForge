@@ -78,6 +78,8 @@ You have access to these tools to enhance the game:
 - **search_image**: Find existing images by slug, tags, or prompt
 - **create_image**: Generate new images with FLUX AI (requires slug, prompt, tags, reference_file)
 
+**IMPORTANT**: To display images to the player, you MUST call these tools. Markdown image syntax (![...](...)) will NOT render - only tool results appear as images.
+
 ### Fate & Uncertainty
 
 Use **twist_of_fate** when outcomes are genuinely uncertain. The orchestrator may suggest situations needing dice via "Suggested Dice Rolls" — consider those, but you can also call twist_of_fate on your own judgment.

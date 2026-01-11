@@ -7,6 +7,7 @@ import {
   type UIMessage,
 } from "ai";
 import type { SuggestedTwist } from "./types";
+import { startAgentLog, completeAgentLog } from "@/lib/agent-logs";
 
 function buildOrchestratorContext(
   preStepSummary?: string,
@@ -42,7 +43,16 @@ export async function runNarrator(opts: {
   tools: ToolSet;
   preStepSummary?: string;
   suggestedTwists?: SuggestedTwist[];
+  conversationId?: string;
 }) {
+  const logId = opts.conversationId
+    ? await startAgentLog(opts.conversationId, "narrator", {
+        messageCount: opts.messages.length,
+        hasPreStepSummary: !!opts.preStepSummary,
+        suggestedTwistsCount: opts.suggestedTwists?.length ?? 0,
+      })
+    : null;
+
   const orchestratorContext = buildOrchestratorContext(
     opts.preStepSummary,
     opts.suggestedTwists,
@@ -57,11 +67,19 @@ export async function runNarrator(opts: {
       ]
     : opts.messages;
 
-  return streamText({
+  const result = streamText({
     model: openai("gpt-5.2"),
     system: opts.gameSystem || undefined,
     messages: await convertToModelMessages(messages),
     tools: opts.tools,
     stopWhen: stepCountIs(20),
+    onFinish: logId
+      ? async () => {
+          // Log completion when streaming finishes
+          await completeAgentLog(logId, { streamed: true });
+        }
+      : undefined,
   });
+
+  return result;
 }

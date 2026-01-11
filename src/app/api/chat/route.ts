@@ -1,4 +1,3 @@
-import { anthropic } from "@ai-sdk/anthropic";
 import {
   streamText,
   convertToModelMessages,
@@ -10,6 +9,7 @@ import { ensureConversationExists } from "@/lib/conversations";
 import { tools } from "./tools";
 import { loadGameConfig } from "@/lib/game-config";
 import { getSystemPrompt } from "@/agents/prompts";
+import { openai } from "@ai-sdk/openai";
 
 export async function POST(req: Request) {
   const {
@@ -38,7 +38,8 @@ export async function POST(req: Request) {
   const allMessages = contextMessage ? [contextMessage, ...messages] : messages;
 
   const result = streamText({
-    model: anthropic("claude-opus-4-5-20251101"),
+    model: openai("gpt-5.2"),
+    // model: anthropic("claude-opus-4-5-20251101"),
     system: system || undefined,
     messages: await convertToModelMessages(allMessages),
     tools,
