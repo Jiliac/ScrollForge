@@ -12,7 +12,9 @@ export async function createConversation(id?: string): Promise<string> {
 
 export async function ensureConversationExists(id: string): Promise<void> {
   const gameId = await getCurrentGameId();
-  const existing = await prisma.conversation.findUnique({ where: { id } });
+  const existing = await prisma.conversation.findFirst({
+    where: { id, gameId },
+  });
   if (!existing) {
     await prisma.conversation.create({ data: { id, gameId } });
   }
