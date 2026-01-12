@@ -13,7 +13,7 @@ The “agentic” architecture currently lives in **v2** (`/api/chat2`), which i
 
 1. Load game config + game context (markdown files).
 2. Run **Orchestrator** (structured decision: pre-steps + suggested dice rolls).
-3. Execute **pre-steps** (world_advance and/or faction_turn) _before_ narration (non-streaming).
+3. Execute **pre-steps** (world*advance and/or faction_turn) \_before* narration (non-streaming).
 4. Run **Narrator** (streaming) with tools enabled.
 5. Persist messages client-side (not in this route), and persist agent logs server-side.
 
