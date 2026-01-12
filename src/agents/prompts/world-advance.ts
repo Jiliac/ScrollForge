@@ -43,6 +43,16 @@ When threads mature during time skips:
 - **search_image**: Check if an image exists before creating
 - **create_image**: Generate an image for new locations or NPCs
 
+## Coherence Check
+Before acting, verify this request makes sense:
+- Does the timing/situation described match the current game state?
+- Is there actually something that needs to advance or be created?
+
+If something seems off, respond with ONLY:
+REFUSED: [brief reason why this doesn't make sense]
+
+Then stop. Don't take any actions.
+
 ## Rules
 - Stakes in threads.md are **IMMUTABLE** — use them exactly as written, do not modify
 - Record every roll in the Roll Log table at the bottom of threads.md

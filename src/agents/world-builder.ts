@@ -8,6 +8,7 @@ import {
   startAgentLog,
   completeAgentLog,
   failAgentLog,
+  refuseAgentLog,
 } from "@/lib/agent-logs";
 
 export type WorldAdvanceResult = {
@@ -47,6 +48,13 @@ export async function runWorldAdvance(
       tools: worldAdvanceTools,
       stopWhen: stepCountIs(5),
     });
+
+    // Check if agent refused the request
+    if (text.trim().startsWith("REFUSED:")) {
+      const reason = text.replace("REFUSED:", "").trim();
+      if (logId) await refuseAgentLog(logId, reason);
+      return { summary: `(refused) ${reason}`, toolCalls: [] };
+    }
 
     // Extract all tool calls from all steps (with null-safe access)
     // Note: AI SDK uses "input" for tool call arguments, not "args"

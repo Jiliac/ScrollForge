@@ -1,17 +1,22 @@
 import { prisma } from "./prisma";
 import type { UIMessage } from "ai";
+import { getCurrentGameId } from "./game-files";
 
 export async function createConversation(id?: string): Promise<string> {
+  const gameId = await getCurrentGameId();
   const conversation = await prisma.conversation.create({
-    data: id ? { id } : {},
+    data: id ? { id, gameId } : { gameId },
   });
   return conversation.id;
 }
 
 export async function ensureConversationExists(id: string): Promise<void> {
-  const existing = await prisma.conversation.findUnique({ where: { id } });
+  const gameId = await getCurrentGameId();
+  const existing = await prisma.conversation.findFirst({
+    where: { id, gameId },
+  });
   if (!existing) {
-    await prisma.conversation.create({ data: { id } });
+    await prisma.conversation.create({ data: { id, gameId } });
   }
 }
 
@@ -47,8 +52,9 @@ export async function saveMessages(
 export async function loadConversation(
   id: string,
 ): Promise<{ id: string; messages: UIMessage[] } | null> {
-  const conversation = await prisma.conversation.findUnique({
-    where: { id },
+  const gameId = await getCurrentGameId();
+  const conversation = await prisma.conversation.findFirst({
+    where: { id, gameId },
     include: {
       messages: {
         orderBy: { createdAt: "asc" },

@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import type { Image } from "@/generated/prisma/client";
+import { getCurrentGameId } from "./game-files";
 
 export interface ImageEntry {
   slug: string;
@@ -20,8 +21,10 @@ function dbToEntry(image: Image): ImageEntry {
 }
 
 export async function createImage(entry: ImageEntry): Promise<Image> {
+  const gameId = await getCurrentGameId();
   return prisma.image.create({
     data: {
+      gameId,
       slug: entry.slug,
       file: entry.file,
       prompt: entry.prompt,
@@ -32,22 +35,30 @@ export async function createImage(entry: ImageEntry): Promise<Image> {
 }
 
 export async function getImageBySlug(slug: string): Promise<ImageEntry | null> {
-  const image = await prisma.image.findUnique({ where: { slug } });
+  const gameId = await getCurrentGameId();
+  const image = await prisma.image.findFirst({
+    where: { gameId, slug },
+  });
   return image ? dbToEntry(image) : null;
 }
 
 export async function getAllImages(): Promise<ImageEntry[]> {
+  const gameId = await getCurrentGameId();
   const images = await prisma.image.findMany({
+    where: { gameId },
     orderBy: { createdAt: "desc" },
   });
   return images.map(dbToEntry);
 }
 
 export async function searchImages(query: string): Promise<ImageEntry | null> {
+  const gameId = await getCurrentGameId();
   const q = query.toLowerCase();
   const words = q.split(/\s+/).filter(Boolean);
 
-  const images = await prisma.image.findMany();
+  const images = await prisma.image.findMany({
+    where: { gameId },
+  });
 
   const found = images.find((img) => {
     const slug = img.slug.toLowerCase();

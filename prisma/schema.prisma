@@ -22,24 +22,43 @@ enum AgentLogStatus {
   running
   completed
   failed
+  refused
+}
+
+model Game {
+  id            String         @id @default(cuid())
+  filesDir      String         @unique
+  createdAt     DateTime       @default(now())
+
+  images        Image[]
+  conversations Conversation[]
 }
 
 model Image {
   id           String   @id @default(cuid())
-  slug         String   @unique
+  gameId       String
+  game         Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  slug         String
   file         String
   prompt       String
   tags         String   // JSON array stored as string
   referencedIn String
   createdAt    DateTime @default(now())
+
+  @@unique([gameId, slug])
+  @@index([gameId])
 }
 
 model Conversation {
   id        String     @id @default(cuid())
+  gameId    String
+  game      Game       @relation(fields: [gameId], references: [id], onDelete: Cascade)
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
   messages  Message[]
   agentLogs AgentLog[]
+
+  @@index([gameId])
 }
 
 model Message {
