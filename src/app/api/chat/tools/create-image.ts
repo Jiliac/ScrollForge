@@ -89,9 +89,10 @@ EXISTING CHARACTER IN NEW SCENE (with ref):
         await fs.writeFile(refFilePath, refContent + imageRef, "utf-8");
       } catch {
         await fs.mkdir(path.dirname(refFilePath), { recursive: true });
+        const title = path.basename(reference_file, ".md");
         await fs.writeFile(
           refFilePath,
-          `# ${slug}\n\n![${slug}](images/${filename})\n`,
+          `# ${title}\n\n![${slug}](images/${filename})\n`,
           "utf-8",
         );
       }

@@ -94,7 +94,7 @@ describe("createImageTool", () => {
     });
     expect(fs.promises.writeFile).toHaveBeenCalledWith(
       "/tmp/game/Locations/Bazaar.md",
-      "# bazaar-morning\n\n![bazaar-morning](images/bazaar-morning.jpeg)\n",
+      "# Bazaar\n\n![bazaar-morning](images/bazaar-morning.jpeg)\n",
       "utf-8",
     );
 
