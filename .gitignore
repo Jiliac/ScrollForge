@@ -47,3 +47,6 @@ next-env.d.ts
 
 # Letta local state
 .letta/settings.local.json
+
+# Aider
+.aider*
