@@ -40,19 +40,29 @@ export async function runOrchestrator(opts: {
       console.warn("Orchestrator first attempt failed, retrying:", firstError);
       const errorMessage =
         firstError instanceof Error ? firstError.message : String(firstError);
-      const result = await generateObject({
-        model: anthropic("claude-opus-4-5-20251101"),
-        schema: OrchestratorDecisionSchema,
-        system,
-        messages: [
-          ...modelMessages,
-          {
-            role: "user" as const,
-            content: `The previous call failed with this error: ${errorMessage}. Please try again.`,
-          },
-        ],
-      });
-      object = result.object;
+      try {
+        const result = await generateObject({
+          model: anthropic("claude-opus-4-5-20251101"),
+          schema: OrchestratorDecisionSchema,
+          system,
+          messages: [
+            ...modelMessages,
+            {
+              role: "user" as const,
+              content: `The previous call failed with this error: ${errorMessage}. Please try again.`,
+            },
+          ],
+        });
+        object = result.object;
+      } catch (secondError) {
+        // Both attempts failed - fallback to going straight to narrator
+        console.error("Orchestrator retry also failed:", secondError);
+        object = {
+          preSteps: [],
+          suggestedTwists: [],
+          reasoning: "(orchestrator failed, going straight to narrator)",
+        };
+      }
     }
 
     if (logId) {
