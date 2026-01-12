@@ -7,3 +7,5 @@ src/generated/
 # Build outputs
 .next/
 node_modules/
+
+pnpm-lock.yaml
