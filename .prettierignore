@@ -1,0 +1,11 @@
+# Generated
+src/generated/
+
+# Aider
+.aider*
+
+# Build outputs
+.next/
+node_modules/
+
+pnpm-lock.yaml
