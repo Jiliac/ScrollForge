@@ -1,4 +1,11 @@
 import { ZepClient } from "@getzep/zep-cloud";
+import type { UIMessage } from "ai";
+
+type ZepMessage = {
+  role: "user" | "assistant";
+  name: string;
+  content: string;
+};
 
 const globalForZep = globalThis as unknown as { zep: ZepClient | null };
 
@@ -89,4 +96,101 @@ export async function syncGameFilesToZep(
   console.log(
     `Synced ${files.length} files (${episodes.length} episodes) to Zep for game: ${gameId}`,
   );
+}
+
+/**
+ * Ensure a Zep thread exists for a conversation.
+ */
+export async function ensureZepThread(
+  gameId: string,
+  threadId: string,
+): Promise<void> {
+  if (!zep) return;
+
+  try {
+    await zep.thread.get(threadId);
+  } catch {
+    // Thread doesn't exist, create it
+    await zep.thread.create({
+      threadId,
+      userId: gameId,
+    });
+    console.log(`Created Zep thread: ${threadId}`);
+  }
+}
+
+/**
+ * Convert UIMessage parts to plain text content.
+ */
+function flattenMessageParts(parts: UIMessage["parts"]): string {
+  const textParts: string[] = [];
+
+  for (const part of parts) {
+    if (part.type === "text") {
+      textParts.push(part.text);
+    } else if (part.type.startsWith("tool-")) {
+      // Summarize tool calls
+      const toolPart = part as {
+        toolName?: string;
+        state?: string;
+        output?: unknown;
+      };
+      if (toolPart.state === "output-available") {
+        textParts.push(`[Used tool: ${toolPart.toolName}]`);
+      }
+    }
+  }
+
+  return textParts.join("\n");
+}
+
+/**
+ * Convert UIMessage[] to Zep Message format.
+ */
+function uiMessagesToZepMessages(messages: UIMessage[]): ZepMessage[] {
+  return messages
+    .map((msg) => {
+      const content = flattenMessageParts(msg.parts);
+      if (!content.trim()) return null;
+
+      return {
+        role: msg.role as "user" | "assistant",
+        name: msg.role === "user" ? "Player" : "Narrator",
+        content,
+      };
+    })
+    .filter((msg): msg is ZepMessage => msg !== null);
+}
+
+/**
+ * Sync messages to a Zep thread and optionally retrieve context.
+ * @returns Context block if returnContext is true, undefined otherwise
+ */
+export async function syncMessagesToZep(
+  gameId: string,
+  threadId: string,
+  messages: UIMessage[],
+  returnContext = false,
+): Promise<string | undefined> {
+  if (!zep) return undefined;
+
+  await ensureZepThread(gameId, threadId);
+
+  const zepMessages = uiMessagesToZepMessages(messages);
+  if (zepMessages.length === 0) return undefined;
+
+  try {
+    const response = await zep.thread.addMessages(threadId, {
+      messages: zepMessages,
+      returnContext,
+    });
+
+    if (returnContext && response.context) {
+      return response.context;
+    }
+  } catch (error) {
+    console.error(`Failed to sync messages to Zep thread ${threadId}:`, error);
+  }
+
+  return undefined;
 }

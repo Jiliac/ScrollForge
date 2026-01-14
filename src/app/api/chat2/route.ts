@@ -1,5 +1,5 @@
 import { type UIMessage } from "ai";
-import { loadGameContext } from "@/lib/game-files";
+import { loadGameContext, getCurrentGameId } from "@/lib/game-files";
 import { loadGameConfig } from "@/lib/game-config";
 import { ensureConversationExists } from "@/lib/conversations";
 import { tools } from "../chat/tools";
@@ -9,6 +9,9 @@ import { runFactionTurn } from "@/agents/faction-turn";
 import { runNarrator } from "@/agents/narrator";
 import { getSystemPrompt } from "@/agents/prompts";
 import type { PreStep } from "@/agents/types";
+import { isZepEnabled, syncMessagesToZep } from "@/lib/zep";
+
+const RECENT_MESSAGE_COUNT = 8;
 
 // Allow streaming responses up to 60 seconds.
 export const maxDuration = 60;
@@ -82,6 +85,14 @@ function buildContextMessage(context: string): UIMessage {
   };
 }
 
+function buildZepContextMessage(context: string): UIMessage {
+  return {
+    id: "zep-context",
+    role: "user",
+    parts: [{ type: "text", text: `# Memory Context\n\n${context}` }],
+  };
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
@@ -98,15 +109,35 @@ export async function POST(req: Request) {
 
     await ensureConversationExists(conversationId);
 
-    const [config, context] = await Promise.all([
+    const [config, context, gameId] = await Promise.all([
       loadGameConfig(),
       loadGameContext(),
+      getCurrentGameId(),
     ]);
 
+    // Sync messages to Zep and get context (if enabled)
+    let zepContext: string | undefined;
+    if (isZepEnabled()) {
+      zepContext = await syncMessagesToZep(
+        gameId,
+        conversationId,
+        messages,
+        true, // returnContext
+      );
+    }
+
     const gameSystem = getSystemPrompt(config);
-    const allMessages = context
-      ? [buildContextMessage(context), ...messages]
-      : messages;
+
+    // Build message array: game context + zep context + recent messages
+    const recentMessages = messages.slice(-RECENT_MESSAGE_COUNT);
+    const contextMessages: UIMessage[] = [];
+    if (context) {
+      contextMessages.push(buildContextMessage(context));
+    }
+    if (zepContext) {
+      contextMessages.push(buildZepContextMessage(zepContext));
+    }
+    const allMessages = [...contextMessages, ...recentMessages];
 
     const decision = await runOrchestrator({
       gameSystem,
@@ -138,6 +169,14 @@ export async function POST(req: Request) {
               suggestedTwists: decision.suggestedTwists,
               // Only expose reasoning in development (may leak system prompt details)
               ...(isDev() && { reasoning: decision.reasoning }),
+            },
+            zep: {
+              enabled: isZepEnabled(),
+              contextLength: zepContext?.length ?? 0,
+              // Only expose context preview in development
+              ...(isDev() && {
+                contextPreview: zepContext?.slice(0, 500),
+              }),
             },
             usage: {
               inputTokens: part.totalUsage.inputTokens,
