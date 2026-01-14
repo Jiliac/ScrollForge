@@ -8,22 +8,32 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id: conversationId } = await params;
-  const { messages }: { messages: UIMessage[] } = await req.json();
+  const {
+    messages,
+    zepContext,
+  }: { messages: UIMessage[]; zepContext?: string } = await req.json();
 
   await ensureConversationExists(conversationId);
 
   // Add assistant message to Zep (user message was already added in chat2)
-  const latestAssistantMessage = messages.findLast((m) => m.role === "assistant");
+  const latestAssistantMessage = messages.findLast(
+    (m) => m.role === "assistant",
+  );
   if (isZepEnabled() && latestAssistantMessage) {
     const gameId = await getCurrentGameId();
     // Fire-and-forget, no context needed
-    addMessageToZep(gameId, conversationId, latestAssistantMessage, false).catch(
-      (err) => console.error("Failed to add assistant message to Zep:", err),
+    addMessageToZep(
+      gameId,
+      conversationId,
+      latestAssistantMessage,
+      false,
+    ).catch((err) =>
+      console.error("Failed to add assistant message to Zep:", err),
     );
   }
 
-  // Save messages to DB (zepContext was already saved by chat2)
-  await saveMessages(conversationId, messages);
+  // Save messages to DB with zepContext attached to assistant message
+  await saveMessages(conversationId, messages, zepContext);
 
   return Response.json({ success: true });
 }

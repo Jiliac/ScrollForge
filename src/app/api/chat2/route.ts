@@ -10,7 +10,6 @@ import { runNarrator } from "@/agents/narrator";
 import { getSystemPrompt } from "@/agents/prompts";
 import type { PreStep } from "@/agents/types";
 import { isZepEnabled, addMessageToZep } from "@/lib/zep";
-import { prisma } from "@/lib/prisma";
 
 const RECENT_MESSAGE_COUNT = 8;
 
@@ -129,14 +128,6 @@ export async function POST(req: Request) {
           latestUserMessage,
           true,
         )) ?? null;
-
-      // Save zepContext to DB so messages route can persist it
-      if (zepContext) {
-        await prisma.conversation.update({
-          where: { id: conversationId },
-          data: { zepContext },
-        });
-      }
     }
 
     // Fall back to game files if no Zep context available
@@ -195,7 +186,9 @@ export async function POST(req: Request) {
             context: {
               source: zepContext ? "zep" : gameFileContext ? "files" : "none",
               length: (zepContext ?? gameFileContext)?.length ?? 0,
-              // Only expose context preview in development
+              // Full zepContext for frontend to pass to messages route
+              zepContext: zepContext ?? undefined,
+              // Only expose preview in development for debugging
               ...(isDev() && {
                 preview: (zepContext ?? gameFileContext)?.slice(0, 500),
               }),

@@ -25,6 +25,11 @@ export async function saveMessages(
   messages: UIMessage[],
   zepContext?: string,
 ): Promise<void> {
+  // Find the latest assistant message to attach zepContext
+  const latestAssistantMessage = messages.findLast(
+    (m) => m.role === "assistant",
+  );
+
   // Use a transaction to upsert all messages
   await prisma.$transaction(
     messages.map((msg) =>
@@ -35,32 +40,27 @@ export async function saveMessages(
           conversationId,
           role: msg.role,
           parts: JSON.stringify(msg.parts),
+          // Attach zepContext to the latest assistant message
+          zepContext:
+            zepContext && msg.id === latestAssistantMessage?.id
+              ? zepContext
+              : null,
         },
         update: {
           parts: JSON.stringify(msg.parts),
+          // Update zepContext if this is the latest assistant message
+          ...(zepContext &&
+            msg.id === latestAssistantMessage?.id && { zepContext }),
         },
       }),
     ),
   );
 
-  // Update conversation timestamp and optionally zepContext
+  // Update conversation timestamp
   await prisma.conversation.update({
     where: { id: conversationId },
-    data: {
-      updatedAt: new Date(),
-      ...(zepContext !== undefined && { zepContext }),
-    },
+    data: { updatedAt: new Date() },
   });
-}
-
-export async function getZepContext(
-  conversationId: string,
-): Promise<string | null> {
-  const conversation = await prisma.conversation.findUnique({
-    where: { id: conversationId },
-    select: { zepContext: true },
-  });
-  return conversation?.zepContext ?? null;
 }
 
 export async function loadConversation(

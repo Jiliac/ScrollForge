@@ -50,14 +50,13 @@ model Image {
 }
 
 model Conversation {
-  id         String     @id @default(cuid())
-  gameId     String
-  game       Game       @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  zepContext String?    // Latest memory context from Zep
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
-  messages   Message[]
-  agentLogs  AgentLog[]
+  id        String     @id @default(cuid())
+  gameId    String
+  game      Game       @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  messages  Message[]
+  agentLogs AgentLog[]
 
   @@index([gameId])
 }
@@ -68,6 +67,7 @@ model Message {
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   role           String       // "user" | "assistant"
   parts          String       // JSON string of UIMessage parts
+  zepContext     String?      // Memory context from Zep (for assistant messages)
   createdAt      DateTime     @default(now())
 }
 

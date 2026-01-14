@@ -4,6 +4,8 @@
 - [ ] Image handling (DB, agent)
 - [ ] OPENAI_MODEL constant for gpt-5.2
 - [ ] Display of sub agents call
+  - Actually this could (should?) be done by using a vercel SDK stream and managing it manually
+  - Otherwise, keep the streamText default handling and make the agentic status be pulled from the DB rather than relying on stream. (I think stream is better because enable ai-elements library to be used more easily)
 
 How to improve coherence?
 

@@ -82,10 +82,14 @@ export function ChatSection({
       messages.length > lastSavedCountRef.current
     ) {
       lastSavedCountRef.current = messages.length;
+
+      // Extract zepContext from the latest assistant message metadata
+      const zepContext = getZepContextFromMessages(messages);
+
       fetch(`/api/conversations/${conversationId}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages }),
+        body: JSON.stringify({ messages, zepContext }),
       }).then(() => {
         // Only set this on home page - signals save is done for redirect
         if (pathname === "/") setHasSavedInitial(true);
@@ -160,4 +164,23 @@ function getLatestUsage(
   if (!latestAssistant?.metadata) return null;
   const metadata = latestAssistant.metadata as { usage?: TokenUsage };
   return metadata.usage || null;
+}
+
+function getZepContextFromMessages(
+  messages: { role: string; metadata?: unknown }[],
+): string | undefined {
+  const latestAssistant = [...messages]
+    .reverse()
+    .find(
+      (msg) =>
+        msg.role === "assistant" &&
+        msg.metadata &&
+        typeof msg.metadata === "object" &&
+        "context" in msg.metadata,
+    );
+  if (!latestAssistant?.metadata) return undefined;
+  const metadata = latestAssistant.metadata as {
+    context?: { zepContext?: string };
+  };
+  return metadata.context?.zepContext;
 }
