@@ -207,6 +207,33 @@ describe("syncGameFilesToZep", () => {
 
     expect(mockAddBatch).toHaveBeenCalledTimes(2); // 20 + 5
   });
+
+  it("continues processing batches on error", async () => {
+    process.env.ZEP_API_KEY = "test-api-key";
+    const mockAddBatch = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("Batch 1 failed"))
+      .mockResolvedValueOnce({});
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    vi.doMock("@getzep/zep-cloud", () => ({
+      ZepClient: createMockZepClient({
+        graph: { addBatch: mockAddBatch },
+      }),
+    }));
+
+    const { syncGameFilesToZep } = await import("@/lib/zep");
+    const files = Array.from({ length: 25 }, (_, i) => ({
+      relativePath: `file${i}.md`,
+      content: `content${i}`,
+    }));
+    await syncGameFilesToZep("game-123", files);
+
+    // Should have tried both batches despite first one failing
+    expect(mockAddBatch).toHaveBeenCalledTimes(2);
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
 });
 
 describe("ensureZepThread", () => {
@@ -411,5 +438,30 @@ describe("addMessageToZep", () => {
       ],
       returnContext: false,
     });
+  });
+
+  it("returns undefined on API error", async () => {
+    process.env.ZEP_API_KEY = "test-api-key";
+    const mockGet = vi.fn().mockResolvedValue({});
+    const mockAddMessages = vi.fn().mockRejectedValue(new Error("API Error"));
+    const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    vi.doMock("@getzep/zep-cloud", () => ({
+      ZepClient: createMockZepClient({
+        thread: { get: mockGet, create: vi.fn(), addMessages: mockAddMessages },
+      }),
+    }));
+
+    const { addMessageToZep } = await import("@/lib/zep");
+    const result = await addMessageToZep(
+      "game-123",
+      "thread-456",
+      { id: "1", role: "user", parts: [{ type: "text", text: "Hello" }] },
+      true,
+    );
+
+    expect(result).toBeUndefined();
+    expect(consoleSpy).toHaveBeenCalled();
+    consoleSpy.mockRestore();
   });
 });
