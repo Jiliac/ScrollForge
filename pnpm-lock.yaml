@@ -20,6 +20,9 @@ importers:
       '@ai-sdk/react':
         specifier: ^3.0.3
         version: 3.0.3(react@19.2.3)(zod@3.25.76)
+      '@getzep/zep-cloud':
+        specifier: ^3.14.0
+        version: 3.14.0
       '@prisma/client':
         specifier: ^6.19.1
         version: 6.19.1(prisma@6.19.1(typescript@5.9.3))(typescript@5.9.3)
@@ -498,6 +501,10 @@ packages:
 
   '@floating-ui/utils@0.2.10':
     resolution: {integrity: sha512-aGTxbpbg8/b5JfU1HXSrbH3wXZuLPJcNEcZQFMxLs3oSzgtVu6nFPkbbGGUvBcUjKV2YyB9Wxxabo+HEH9tcRQ==}
+
+  '@getzep/zep-cloud@3.14.0':
+    resolution: {integrity: sha512-uBjk/U2qxa/ovLEEcy3NE32tqVWAIWDQoDyiuH6a/zeqbHYS0RxG6CaOTdhMw1CYYTtnEYrgG0jfJ1dyUmMYMA==}
+    engines: {node: '>=18.0.0'}
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -4465,6 +4472,10 @@ snapshots:
       react-dom: 19.2.3(react@19.2.3)
 
   '@floating-ui/utils@0.2.10': {}
+
+  '@getzep/zep-cloud@3.14.0':
+    dependencies:
+      zod: 3.25.76
 
   '@humanfs/core@0.19.1': {}
 

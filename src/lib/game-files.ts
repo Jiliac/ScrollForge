@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { prisma } from "./prisma";
+import { ensureZepUser, syncGameFilesToZep, isZepEnabled } from "./zep";
 
 export function getGameFilesDir(): string {
   return (
@@ -15,13 +16,37 @@ export async function getCurrentGame(): Promise<{
 }> {
   const filesDir = getGameFilesDir();
 
+  // Check if game already exists
+  const existing = await prisma.game.findUnique({ where: { filesDir } });
+  const isNewGame = !existing;
+
   const game = await prisma.game.upsert({
     where: { filesDir },
     update: {},
     create: { filesDir },
   });
 
+  // Initialize Zep for new games
+  if (isNewGame && isZepEnabled()) {
+    await initializeZepForGame(game.id, filesDir);
+  }
+
   return game;
+}
+
+async function initializeZepForGame(
+  gameId: string,
+  filesDir: string,
+): Promise<void> {
+  try {
+    await ensureZepUser(gameId);
+
+    // Sync all markdown files to Zep's knowledge graph
+    const files = await readMdFilesRecursively(filesDir, filesDir);
+    await syncGameFilesToZep(gameId, files);
+  } catch (error) {
+    console.error("Failed to initialize Zep for game:", error);
+  }
 }
 
 // Convenience: just get the ID
