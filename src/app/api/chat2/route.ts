@@ -1,7 +1,7 @@
 import { type UIMessage } from "ai";
-import { loadGameContext } from "@/lib/game-files";
+import { loadGameContext, getCurrentGameId } from "@/lib/game-files";
 import { loadGameConfig } from "@/lib/game-config";
-import { ensureConversationExists, getZepContext } from "@/lib/conversations";
+import { ensureConversationExists } from "@/lib/conversations";
 import { tools } from "../chat/tools";
 import { runOrchestrator } from "@/agents/orchestrator";
 import { runWorldAdvance } from "@/agents/world-builder";
@@ -9,7 +9,8 @@ import { runFactionTurn } from "@/agents/faction-turn";
 import { runNarrator } from "@/agents/narrator";
 import { getSystemPrompt } from "@/agents/prompts";
 import type { PreStep } from "@/agents/types";
-import { isZepEnabled } from "@/lib/zep";
+import { isZepEnabled, addMessageToZep } from "@/lib/zep";
+import { prisma } from "@/lib/prisma";
 
 const RECENT_MESSAGE_COUNT = 8;
 
@@ -109,15 +110,33 @@ export async function POST(req: Request) {
 
     await ensureConversationExists(conversationId);
 
-    const config = await loadGameConfig();
+    const [config, gameId] = await Promise.all([
+      loadGameConfig(),
+      getCurrentGameId(),
+    ]);
 
-    // Load zepContext from DB (populated by messages route)
-    // Fall back to game files if Zep is disabled or no context yet
+    // Add latest user message to Zep and get context
+    // Fall back to game files if Zep is disabled or returns no context
     let zepContext: string | null = null;
     let gameFileContext: string | null = null;
 
-    if (isZepEnabled()) {
-      zepContext = await getZepContext(conversationId);
+    const latestUserMessage = messages.findLast((m) => m.role === "user");
+    if (isZepEnabled() && latestUserMessage) {
+      zepContext =
+        (await addMessageToZep(
+          gameId,
+          conversationId,
+          latestUserMessage,
+          true,
+        )) ?? null;
+
+      // Save zepContext to DB so messages route can persist it
+      if (zepContext) {
+        await prisma.conversation.update({
+          where: { id: conversationId },
+          data: { zepContext },
+        });
+      }
     }
 
     // Fall back to game files if no Zep context available

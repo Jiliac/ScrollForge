@@ -163,20 +163,21 @@ function uiMessagesToZepMessages(messages: UIMessage[]): ZepMessage[] {
 }
 
 /**
- * Sync messages to a Zep thread and optionally retrieve context.
+ * Add a single message to Zep thread and optionally retrieve context.
+ * Use this for incremental message syncing (one message at a time).
  * @returns Context block if returnContext is true, undefined otherwise
  */
-export async function syncMessagesToZep(
+export async function addMessageToZep(
   gameId: string,
   threadId: string,
-  messages: UIMessage[],
+  message: UIMessage,
   returnContext = false,
 ): Promise<string | undefined> {
   if (!zep) return undefined;
 
   await ensureZepThread(gameId, threadId);
 
-  const zepMessages = uiMessagesToZepMessages(messages);
+  const zepMessages = uiMessagesToZepMessages([message]);
   if (zepMessages.length === 0) return undefined;
 
   try {
@@ -189,7 +190,7 @@ export async function syncMessagesToZep(
       return response.context;
     }
   } catch (error) {
-    console.error(`Failed to sync messages to Zep thread ${threadId}:`, error);
+    console.error(`Failed to add message to Zep thread ${threadId}:`, error);
   }
 
   return undefined;

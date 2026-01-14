@@ -274,7 +274,7 @@ describe("ensureZepThread", () => {
   });
 });
 
-describe("syncMessagesToZep", () => {
+describe("addMessageToZep", () => {
   const originalEnv = process.env.ZEP_API_KEY;
 
   afterEach(() => {
@@ -293,14 +293,16 @@ describe("syncMessagesToZep", () => {
       ZepClient: createMockZepClient(),
     }));
 
-    const { syncMessagesToZep } = await import("@/lib/zep");
-    const result = await syncMessagesToZep("game-123", "thread-456", [
-      { id: "1", role: "user", parts: [{ type: "text", text: "Hello" }] },
-    ]);
+    const { addMessageToZep } = await import("@/lib/zep");
+    const result = await addMessageToZep("game-123", "thread-456", {
+      id: "1",
+      role: "user",
+      parts: [{ type: "text", text: "Hello" }],
+    });
     expect(result).toBeUndefined();
   });
 
-  it("converts UIMessages and syncs to thread", async () => {
+  it("converts UIMessage and adds to thread", async () => {
     process.env.ZEP_API_KEY = "test-api-key";
     const mockGet = vi.fn().mockResolvedValue({});
     const mockAddMessages = vi.fn().mockResolvedValue({});
@@ -311,21 +313,15 @@ describe("syncMessagesToZep", () => {
       }),
     }));
 
-    const { syncMessagesToZep } = await import("@/lib/zep");
-    await syncMessagesToZep("game-123", "thread-456", [
-      { id: "1", role: "user", parts: [{ type: "text", text: "Hello" }] },
-      {
-        id: "2",
-        role: "assistant",
-        parts: [{ type: "text", text: "Hi there!" }],
-      },
-    ]);
+    const { addMessageToZep } = await import("@/lib/zep");
+    await addMessageToZep("game-123", "thread-456", {
+      id: "1",
+      role: "user",
+      parts: [{ type: "text", text: "Hello" }],
+    });
 
     expect(mockAddMessages).toHaveBeenCalledWith("thread-456", {
-      messages: [
-        { role: "user", name: "Player", content: "Hello" },
-        { role: "assistant", name: "Narrator", content: "Hi there!" },
-      ],
+      messages: [{ role: "user", name: "Player", content: "Hello" }],
       returnContext: false,
     });
   });
@@ -343,11 +339,11 @@ describe("syncMessagesToZep", () => {
       }),
     }));
 
-    const { syncMessagesToZep } = await import("@/lib/zep");
-    const result = await syncMessagesToZep(
+    const { addMessageToZep } = await import("@/lib/zep");
+    const result = await addMessageToZep(
       "game-123",
       "thread-456",
-      [{ id: "1", role: "user", parts: [{ type: "text", text: "Hello" }] }],
+      { id: "1", role: "user", parts: [{ type: "text", text: "Hello" }] },
       true,
     );
 
@@ -369,10 +365,12 @@ describe("syncMessagesToZep", () => {
       }),
     }));
 
-    const { syncMessagesToZep } = await import("@/lib/zep");
-    await syncMessagesToZep("game-123", "thread-456", [
-      { id: "1", role: "user", parts: [{ type: "text", text: "" }] },
-    ]);
+    const { addMessageToZep } = await import("@/lib/zep");
+    await addMessageToZep("game-123", "thread-456", {
+      id: "1",
+      role: "user",
+      parts: [{ type: "text", text: "" }],
+    });
 
     expect(mockAddMessages).not.toHaveBeenCalled();
   });
@@ -388,22 +386,20 @@ describe("syncMessagesToZep", () => {
       }),
     }));
 
-    const { syncMessagesToZep } = await import("@/lib/zep");
-    await syncMessagesToZep("game-123", "thread-456", [
-      {
-        id: "1",
-        role: "assistant",
-        parts: [
-          { type: "text", text: "Let me create an image." },
-          {
-            type: "tool-create_image",
-            toolName: "create_image",
-            state: "output-available",
-            output: { path: "images/test.png" },
-          },
-        ],
-      },
-    ]);
+    const { addMessageToZep } = await import("@/lib/zep");
+    await addMessageToZep("game-123", "thread-456", {
+      id: "1",
+      role: "assistant",
+      parts: [
+        { type: "text", text: "Let me create an image." },
+        {
+          type: "tool-create_image",
+          toolName: "create_image",
+          state: "output-available",
+          output: { path: "images/test.png" },
+        },
+      ],
+    });
 
     expect(mockAddMessages).toHaveBeenCalledWith("thread-456", {
       messages: [
