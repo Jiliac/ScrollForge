@@ -13,7 +13,7 @@ How to improve coherence?
   - [x] Basic integration: sync game files, threads, messages
   - [x] Context injection before LLM calls
   - [ ] Track message sync status before trimming (avoid blind spot during async processing)
-  - [ ] Re-sync game files when modified
+  - [ ] Re-sync game files when modified [NOTE: world_advance and faction_turn !! (Write/edit files hook?)]
   - [ ] Custom context templates for RPG-specific formatting
 - [ ] ~~Faction within conversation~~
 - [ ] Memory management. **Archivist**, compress conversation? (Or implicit restart)

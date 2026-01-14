@@ -11,14 +11,22 @@ export async function POST(
   const { messages }: { messages: UIMessage[] } = await req.json();
 
   await ensureConversationExists(conversationId);
-  await saveMessages(conversationId, messages);
 
-  // Fire-and-forget sync to Zep (includes assistant response)
+  // Sync to Zep and get updated context
+  let zepContext: string | undefined;
   if (isZepEnabled()) {
-    getCurrentGameId()
-      .then((gameId) => syncMessagesToZep(gameId, conversationId, messages))
-      .catch((err) => console.error("Failed to sync messages to Zep:", err));
+    try {
+      const gameId = await getCurrentGameId();
+      zepContext =
+        (await syncMessagesToZep(gameId, conversationId, messages, true)) ??
+        undefined;
+    } catch (err) {
+      console.error("Failed to sync messages to Zep:", err);
+    }
   }
 
-  return Response.json({ success: true });
+  // Save messages and zepContext to DB
+  await saveMessages(conversationId, messages, zepContext);
+
+  return Response.json({ success: true, zepContext });
 }

@@ -50,13 +50,14 @@ model Image {
 }
 
 model Conversation {
-  id        String     @id @default(cuid())
-  gameId    String
-  game      Game       @relation(fields: [gameId], references: [id], onDelete: Cascade)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  messages  Message[]
-  agentLogs AgentLog[]
+  id         String     @id @default(cuid())
+  gameId     String
+  game       Game       @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  zepContext String?    // Latest memory context from Zep
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  messages   Message[]
+  agentLogs  AgentLog[]
 
   @@index([gameId])
 }

@@ -1,7 +1,7 @@
 import { type UIMessage } from "ai";
-import { loadGameContext, getCurrentGameId } from "@/lib/game-files";
+import { loadGameContext } from "@/lib/game-files";
 import { loadGameConfig } from "@/lib/game-config";
-import { ensureConversationExists } from "@/lib/conversations";
+import { ensureConversationExists, getZepContext } from "@/lib/conversations";
 import { tools } from "../chat/tools";
 import { runOrchestrator } from "@/agents/orchestrator";
 import { runWorldAdvance } from "@/agents/world-builder";
@@ -9,7 +9,7 @@ import { runFactionTurn } from "@/agents/faction-turn";
 import { runNarrator } from "@/agents/narrator";
 import { getSystemPrompt } from "@/agents/prompts";
 import type { PreStep } from "@/agents/types";
-import { isZepEnabled, syncMessagesToZep } from "@/lib/zep";
+import { isZepEnabled } from "@/lib/zep";
 
 const RECENT_MESSAGE_COUNT = 8;
 
@@ -109,33 +109,31 @@ export async function POST(req: Request) {
 
     await ensureConversationExists(conversationId);
 
-    const [config, context, gameId] = await Promise.all([
-      loadGameConfig(),
-      loadGameContext(),
-      getCurrentGameId(),
-    ]);
+    const config = await loadGameConfig();
 
-    // Sync messages to Zep and get context (if enabled)
-    let zepContext: string | undefined;
+    // Load zepContext from DB (populated by messages route)
+    // Fall back to game files if Zep is disabled or no context yet
+    let zepContext: string | null = null;
+    let gameFileContext: string | null = null;
+
     if (isZepEnabled()) {
-      zepContext = await syncMessagesToZep(
-        gameId,
-        conversationId,
-        messages,
-        true, // returnContext
-      );
+      zepContext = await getZepContext(conversationId);
+    }
+
+    // Fall back to game files if no Zep context available
+    if (!zepContext) {
+      gameFileContext = await loadGameContext();
     }
 
     const gameSystem = getSystemPrompt(config);
 
-    // Build message array: game context + zep context + recent messages
+    // Build message array: context (Zep or game files) + recent messages
     const recentMessages = messages.slice(-RECENT_MESSAGE_COUNT);
     const contextMessages: UIMessage[] = [];
-    if (context) {
-      contextMessages.push(buildContextMessage(context));
-    }
     if (zepContext) {
       contextMessages.push(buildZepContextMessage(zepContext));
+    } else if (gameFileContext) {
+      contextMessages.push(buildContextMessage(gameFileContext));
     }
     const allMessages = [...contextMessages, ...recentMessages];
 
@@ -146,8 +144,13 @@ export async function POST(req: Request) {
     });
 
     // Only execute pre-steps if we have context (pre-step agents need it)
-    const preStepSummary = context
-      ? await executePreSteps(decision.preSteps, context, conversationId)
+    const effectiveContext = zepContext ?? gameFileContext;
+    const preStepSummary = effectiveContext
+      ? await executePreSteps(
+          decision.preSteps,
+          effectiveContext,
+          conversationId,
+        )
       : undefined;
 
     const result = await runNarrator({
@@ -170,12 +173,12 @@ export async function POST(req: Request) {
               // Only expose reasoning in development (may leak system prompt details)
               ...(isDev() && { reasoning: decision.reasoning }),
             },
-            zep: {
-              enabled: isZepEnabled(),
-              contextLength: zepContext?.length ?? 0,
+            context: {
+              source: zepContext ? "zep" : gameFileContext ? "files" : "none",
+              length: (zepContext ?? gameFileContext)?.length ?? 0,
               // Only expose context preview in development
               ...(isDev() && {
-                contextPreview: zepContext?.slice(0, 500),
+                preview: (zepContext ?? gameFileContext)?.slice(0, 500),
               }),
             },
             usage: {

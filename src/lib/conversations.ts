@@ -23,6 +23,7 @@ export async function ensureConversationExists(id: string): Promise<void> {
 export async function saveMessages(
   conversationId: string,
   messages: UIMessage[],
+  zepContext?: string,
 ): Promise<void> {
   // Use a transaction to upsert all messages
   await prisma.$transaction(
@@ -42,11 +43,24 @@ export async function saveMessages(
     ),
   );
 
-  // Update conversation timestamp
+  // Update conversation timestamp and optionally zepContext
   await prisma.conversation.update({
     where: { id: conversationId },
-    data: { updatedAt: new Date() },
+    data: {
+      updatedAt: new Date(),
+      ...(zepContext !== undefined && { zepContext }),
+    },
   });
+}
+
+export async function getZepContext(
+  conversationId: string,
+): Promise<string | null> {
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    select: { zepContext: true },
+  });
+  return conversation?.zepContext ?? null;
 }
 
 export async function loadConversation(
