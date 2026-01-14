@@ -39,9 +39,23 @@ export async function ensureZepUser(gameId: string): Promise<void> {
   }
 }
 
+const ZEP_MAX_CHARS = 9500;
+const ZEP_BATCH_SIZE = 20;
+
+function splitIntoChunks(text: string, maxChars: number): string[] {
+  if (text.length <= maxChars) return [text];
+
+  const chunks: string[] = [];
+  for (let i = 0; i < text.length; i += maxChars) {
+    chunks.push(text.slice(i, i + maxChars));
+  }
+  return chunks;
+}
+
 /**
- * Send markdown files to Zep's knowledge graph.
- * Each file is sent as a separate data entry.
+ * Send markdown files to Zep's knowledge graph using batch processing.
+ * Large files are split into chunks to fit within Zep's 10k limit.
+ * Processes up to 20 episodes concurrently per batch.
  */
 export async function syncGameFilesToZep(
   gameId: string,
@@ -49,17 +63,30 @@ export async function syncGameFilesToZep(
 ): Promise<void> {
   if (!zep) return;
 
+  // Build all episodes
+  const episodes: { data: string; type: "text" }[] = [];
   for (const file of files) {
-    try {
-      await zep.graph.add({
-        userId: gameId,
-        type: "text",
-        data: `# ${file.relativePath}\n\n${file.content}`,
-      });
-    } catch (error) {
-      console.error(`Failed to sync ${file.relativePath} to Zep:`, error);
+    const fullText = `# ${file.relativePath}\n\n${file.content}`;
+    const chunks = splitIntoChunks(fullText, ZEP_MAX_CHARS);
+    for (const chunk of chunks) {
+      episodes.push({ data: chunk, type: "text" });
     }
   }
 
-  console.log(`Synced ${files.length} files to Zep for game: ${gameId}`);
+  // Send in batches of 20
+  for (let i = 0; i < episodes.length; i += ZEP_BATCH_SIZE) {
+    const batch = episodes.slice(i, i + ZEP_BATCH_SIZE);
+    try {
+      await zep.graph.addBatch({ userId: gameId, episodes: batch });
+    } catch (error) {
+      console.error(
+        `Failed to sync batch ${i / ZEP_BATCH_SIZE + 1} to Zep:`,
+        error,
+      );
+    }
+  }
+
+  console.log(
+    `Synced ${files.length} files (${episodes.length} episodes) to Zep for game: ${gameId}`,
+  );
 }
