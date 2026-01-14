@@ -6,6 +6,7 @@ beforeEach(() => {
     process.env.GAME_FILES_DIR || "TEST_GAME_FILES_DIR_NOT_SET";
 
   // Silence console during tests
+  vi.spyOn(console, "log").mockImplementation(() => {});
   vi.spyOn(console, "warn").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
