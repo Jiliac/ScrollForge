@@ -1,7 +1,6 @@
 -- Rollback: Remove zepContext column from Message table
--- Reverses migrations:
---   20260114063508_add_zep_context
---   20260114092734_move_zep_context_to_message
+-- Rollback: Remove zepContext column from Message table
+-- Reverses migration: 20260114092734_move_zep_context_to_message
 
 -- SQLite doesn't support DROP COLUMN directly, so we recreate the table
 PRAGMA defer_foreign_keys=ON;
