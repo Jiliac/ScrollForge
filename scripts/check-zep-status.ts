@@ -7,7 +7,13 @@ import "dotenv/config";
 import { ZepClient } from "@getzep/zep-cloud";
 
 async function main() {
-  const zep = new ZepClient({ apiKey: process.env.ZEP_API_KEY! });
+  const apiKey = process.env.ZEP_API_KEY;
+  if (!apiKey) {
+    console.error("Error: ZEP_API_KEY environment variable is not set");
+    process.exit(1);
+  }
+
+  const zep = new ZepClient({ apiKey });
 
   // Check project info
   console.log("=== Project Info ===");

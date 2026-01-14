@@ -1,5 +1,15 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 
+// Mock ZepError class
+class MockZepError extends Error {
+  statusCode: number;
+  constructor(message: string, statusCode: number) {
+    super(message);
+    this.name = "ZepError";
+    this.statusCode = statusCode;
+  }
+}
+
 function createMockZepClient(overrides = {}) {
   return class MockZepClient {
     user = { get: vi.fn(), add: vi.fn() };
@@ -8,6 +18,13 @@ function createMockZepClient(overrides = {}) {
     constructor() {
       Object.assign(this, overrides);
     }
+  };
+}
+
+function createMockModule(overrides = {}) {
+  return {
+    ZepClient: createMockZepClient(overrides),
+    ZepError: MockZepError,
   };
 }
 
@@ -93,13 +110,16 @@ describe("ensureZepUser", () => {
 
   it("creates user if not exists", async () => {
     process.env.ZEP_API_KEY = "test-api-key";
-    const mockGet = vi.fn().mockRejectedValue(new Error("Not found"));
+    const mockGet = vi
+      .fn()
+      .mockRejectedValue(new MockZepError("Not found", 404));
     const mockAdd = vi.fn().mockResolvedValue({});
 
     vi.doMock("@getzep/zep-cloud", () => ({
       ZepClient: createMockZepClient({
         user: { get: mockGet, add: mockAdd },
       }),
+      ZepError: MockZepError,
     }));
 
     const { ensureZepUser } = await import("@/lib/zep");
@@ -281,13 +301,16 @@ describe("ensureZepThread", () => {
 
   it("creates thread if not exists", async () => {
     process.env.ZEP_API_KEY = "test-api-key";
-    const mockGet = vi.fn().mockRejectedValue(new Error("Not found"));
+    const mockGet = vi
+      .fn()
+      .mockRejectedValue(new MockZepError("Not found", 404));
     const mockCreate = vi.fn().mockResolvedValue({});
 
     vi.doMock("@getzep/zep-cloud", () => ({
       ZepClient: createMockZepClient({
         thread: { get: mockGet, create: mockCreate, addMessages: vi.fn() },
       }),
+      ZepError: MockZepError,
     }));
 
     const { ensureZepThread } = await import("@/lib/zep");

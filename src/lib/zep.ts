@@ -1,4 +1,4 @@
-import { ZepClient } from "@getzep/zep-cloud";
+import { ZepClient, ZepError } from "@getzep/zep-cloud";
 import type { UIMessage } from "ai";
 
 type ZepMessage = {
@@ -35,14 +35,18 @@ export async function ensureZepUser(gameId: string): Promise<void> {
 
   try {
     await zep.user.get(gameId);
-  } catch {
-    // User doesn't exist, create it
-    await zep.user.add({
-      userId: gameId,
-      firstName: "Game",
-      lastName: gameId.slice(0, 8),
-    });
-    console.log(`Created Zep user for game: ${gameId}`);
+  } catch (error) {
+    // Only create user if it's a 404 (not found), rethrow other errors
+    if (error instanceof ZepError && error.statusCode === 404) {
+      await zep.user.add({
+        userId: gameId,
+        firstName: "Game",
+        lastName: gameId.slice(0, 8),
+      });
+      console.log(`Created Zep user for game: ${gameId}`);
+    } else {
+      throw error;
+    }
   }
 }
 
@@ -109,13 +113,17 @@ export async function ensureZepThread(
 
   try {
     await zep.thread.get(threadId);
-  } catch {
-    // Thread doesn't exist, create it
-    await zep.thread.create({
-      threadId,
-      userId: gameId,
-    });
-    console.log(`Created Zep thread: ${threadId}`);
+  } catch (error) {
+    // Only create thread if it's a 404 (not found), rethrow other errors
+    if (error instanceof ZepError && error.statusCode === 404) {
+      await zep.thread.create({
+        threadId,
+        userId: gameId,
+      });
+      console.log(`Created Zep thread: ${threadId}`);
+    } else {
+      throw error;
+    }
   }
 }
 
@@ -146,15 +154,20 @@ function flattenMessageParts(parts: UIMessage["parts"]): string {
 
 /**
  * Convert UIMessage[] to Zep Message format.
+ * Only "user" and "assistant" roles are supported by Zep.
  */
 function uiMessagesToZepMessages(messages: UIMessage[]): ZepMessage[] {
   return messages
+    .filter(
+      (msg): msg is UIMessage & { role: "user" | "assistant" } =>
+        msg.role === "user" || msg.role === "assistant",
+    )
     .map((msg) => {
       const content = flattenMessageParts(msg.parts);
       if (!content.trim()) return null;
 
       return {
-        role: msg.role as "user" | "assistant",
+        role: msg.role,
         name: msg.role === "user" ? "Player" : "Narrator",
         content,
       };
@@ -175,12 +188,12 @@ export async function addMessageToZep(
 ): Promise<string | undefined> {
   if (!zep) return undefined;
 
-  await ensureZepThread(gameId, threadId);
-
   const zepMessages = uiMessagesToZepMessages([message]);
   if (zepMessages.length === 0) return undefined;
 
   try {
+    await ensureZepThread(gameId, threadId);
+
     const response = await zep.thread.addMessages(threadId, {
       messages: zepMessages,
       returnContext,
