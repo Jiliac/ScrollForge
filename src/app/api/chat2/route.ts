@@ -109,16 +109,37 @@ export async function POST(req: Request) {
 
     await ensureConversationExists(conversationId);
 
-    const [config, gameId] = await Promise.all([
+    const [config, gameId, gameFileContext] = await Promise.all([
       loadGameConfig(),
       getCurrentGameId(),
+      loadGameContext(),
     ]);
 
-    // Add latest user message to Zep and get context
-    // Fall back to game files if Zep is disabled or returns no context
-    let zepContext: string | null = null;
-    let gameFileContext: string | null = null;
+    const gameSystem = getSystemPrompt(config);
+    const recentMessages = messages.slice(-RECENT_MESSAGE_COUNT);
 
+    // Orchestrator uses game files context
+    const orchestratorMessages: UIMessage[] = gameFileContext
+      ? [buildContextMessage(gameFileContext), ...recentMessages]
+      : recentMessages;
+
+    const decision = await runOrchestrator({
+      gameSystem,
+      messages: orchestratorMessages,
+      conversationId,
+    });
+
+    // Pre-steps (world_advance, faction_turn) use game files context
+    const preStepSummary = gameFileContext
+      ? await executePreSteps(
+          decision.preSteps,
+          gameFileContext,
+          conversationId,
+        )
+      : undefined;
+
+    // Add user message to Zep and get memory context for narrator
+    let zepContext: string | null = null;
     const latestUserMessage = messages.findLast((m) => m.role === "user");
     if (isZepEnabled() && latestUserMessage) {
       zepContext =
@@ -130,42 +151,18 @@ export async function POST(req: Request) {
         )) ?? null;
     }
 
-    // Fall back to game files if no Zep context available
-    if (!zepContext) {
-      gameFileContext = await loadGameContext();
-    }
-
-    const gameSystem = getSystemPrompt(config);
-
-    // Build message array: context (Zep or game files) + recent messages
-    const recentMessages = messages.slice(-RECENT_MESSAGE_COUNT);
-    const contextMessages: UIMessage[] = [];
+    // Narrator uses Zep context (falls back to game files)
+    const narratorContextMessages: UIMessage[] = [];
     if (zepContext) {
-      contextMessages.push(buildZepContextMessage(zepContext));
+      narratorContextMessages.push(buildZepContextMessage(zepContext));
     } else if (gameFileContext) {
-      contextMessages.push(buildContextMessage(gameFileContext));
+      narratorContextMessages.push(buildContextMessage(gameFileContext));
     }
-    const allMessages = [...contextMessages, ...recentMessages];
-
-    const decision = await runOrchestrator({
-      gameSystem,
-      messages: allMessages,
-      conversationId,
-    });
-
-    // Only execute pre-steps if we have context (pre-step agents need it)
-    const effectiveContext = zepContext ?? gameFileContext;
-    const preStepSummary = effectiveContext
-      ? await executePreSteps(
-          decision.preSteps,
-          effectiveContext,
-          conversationId,
-        )
-      : undefined;
+    const narratorMessages = [...narratorContextMessages, ...recentMessages];
 
     const result = await runNarrator({
       gameSystem,
-      messages: allMessages,
+      messages: narratorMessages,
       tools,
       preStepSummary,
       suggestedTwists: decision.suggestedTwists,
