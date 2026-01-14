@@ -66,7 +66,7 @@ function splitIntoChunks(text: string, maxChars: number): string[] {
 /**
  * Send markdown files to Zep's knowledge graph using batch processing.
  * Large files are split into chunks to fit within Zep's 10k limit.
- * Processes up to 20 episodes concurrently per batch.
+ * Sends up to 20 episodes per batch, processed sequentially.
  */
 export async function syncGameFilesToZep(
   gameId: string,
