@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, vi } from "vitest";
 
+// Mock server-only package (Next.js specific, throws on client)
+vi.mock("server-only", () => ({}));
+
 beforeEach(() => {
   // Ensure tests don't accidentally touch real local game files
   process.env.GAME_FILES_DIR =

@@ -163,12 +163,15 @@ describe("syncGameFilesToZep", () => {
 
   it("sends files as batch episodes", async () => {
     process.env.ZEP_API_KEY = "test-api-key";
+    const mockUserGet = vi.fn().mockResolvedValue({});
     const mockAddBatch = vi.fn().mockResolvedValue({});
 
     vi.doMock("@getzep/zep-cloud", () => ({
       ZepClient: createMockZepClient({
+        user: { get: mockUserGet, add: vi.fn() },
         graph: { addBatch: mockAddBatch },
       }),
+      ZepError: MockZepError,
     }));
 
     const { syncGameFilesToZep } = await import("@/lib/zep");
@@ -189,12 +192,15 @@ describe("syncGameFilesToZep", () => {
 
   it("chunks large files under 9500 chars", async () => {
     process.env.ZEP_API_KEY = "test-api-key";
+    const mockUserGet = vi.fn().mockResolvedValue({});
     const mockAddBatch = vi.fn().mockResolvedValue({});
 
     vi.doMock("@getzep/zep-cloud", () => ({
       ZepClient: createMockZepClient({
+        user: { get: mockUserGet, add: vi.fn() },
         graph: { addBatch: mockAddBatch },
       }),
+      ZepError: MockZepError,
     }));
 
     const { syncGameFilesToZep } = await import("@/lib/zep");
@@ -210,12 +216,15 @@ describe("syncGameFilesToZep", () => {
 
   it("sends multiple batches for many files", async () => {
     process.env.ZEP_API_KEY = "test-api-key";
+    const mockUserGet = vi.fn().mockResolvedValue({});
     const mockAddBatch = vi.fn().mockResolvedValue({});
 
     vi.doMock("@getzep/zep-cloud", () => ({
       ZepClient: createMockZepClient({
+        user: { get: mockUserGet, add: vi.fn() },
         graph: { addBatch: mockAddBatch },
       }),
+      ZepError: MockZepError,
     }));
 
     const { syncGameFilesToZep } = await import("@/lib/zep");
@@ -228,8 +237,9 @@ describe("syncGameFilesToZep", () => {
     expect(mockAddBatch).toHaveBeenCalledTimes(2); // 20 + 5
   });
 
-  it("continues processing batches on error", async () => {
+  it("continues processing batches on error and throws at end", async () => {
     process.env.ZEP_API_KEY = "test-api-key";
+    const mockUserGet = vi.fn().mockResolvedValue({});
     const mockAddBatch = vi
       .fn()
       .mockRejectedValueOnce(new Error("Batch 1 failed"))
@@ -238,8 +248,10 @@ describe("syncGameFilesToZep", () => {
 
     vi.doMock("@getzep/zep-cloud", () => ({
       ZepClient: createMockZepClient({
+        user: { get: mockUserGet, add: vi.fn() },
         graph: { addBatch: mockAddBatch },
       }),
+      ZepError: MockZepError,
     }));
 
     const { syncGameFilesToZep } = await import("@/lib/zep");
@@ -247,7 +259,11 @@ describe("syncGameFilesToZep", () => {
       relativePath: `file${i}.md`,
       content: `content${i}`,
     }));
-    await syncGameFilesToZep("game-123", files);
+
+    // Should throw after processing all batches
+    await expect(syncGameFilesToZep("game-123", files)).rejects.toThrow(
+      "Failed to sync 1/2 batches",
+    );
 
     // Should have tried both batches despite first one failing
     expect(mockAddBatch).toHaveBeenCalledTimes(2);

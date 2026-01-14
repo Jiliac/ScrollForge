@@ -1,3 +1,5 @@
+import "server-only";
+
 import { ZepClient, ZepError } from "@getzep/zep-cloud";
 import type { UIMessage } from "ai";
 
@@ -7,7 +9,7 @@ type ZepMessage = {
   content: string;
 };
 
-const globalForZep = globalThis as unknown as { zep: ZepClient | null };
+const globalForZep = globalThis as unknown as { zep?: ZepClient | null };
 
 function createZepClient(): ZepClient | null {
   const apiKey = process.env.ZEP_API_KEY;
@@ -67,12 +69,16 @@ function splitIntoChunks(text: string, maxChars: number): string[] {
  * Send markdown files to Zep's knowledge graph using batch processing.
  * Large files are split into chunks to fit within Zep's 10k limit.
  * Sends up to 20 episodes per batch, processed sequentially.
+ * @throws Error if any batch fails to sync
  */
 export async function syncGameFilesToZep(
   gameId: string,
   files: { relativePath: string; content: string }[],
 ): Promise<void> {
   if (!zep) return;
+
+  // Ensure user exists before syncing
+  await ensureZepUser(gameId);
 
   // Build all episodes
   const episodes: { data: string; type: "text" }[] = [];
@@ -84,17 +90,28 @@ export async function syncGameFilesToZep(
     }
   }
 
-  // Send in batches of 20
+  // Send in batches of 20, collect any errors
+  const errors: { batch: number; error: unknown }[] = [];
+  const totalBatches = Math.ceil(episodes.length / ZEP_BATCH_SIZE);
+
   for (let i = 0; i < episodes.length; i += ZEP_BATCH_SIZE) {
     const batch = episodes.slice(i, i + ZEP_BATCH_SIZE);
+    const batchNum = Math.floor(i / ZEP_BATCH_SIZE) + 1;
     try {
       await zep.graph.addBatch({ userId: gameId, episodes: batch });
     } catch (error) {
       console.error(
-        `Failed to sync batch ${i / ZEP_BATCH_SIZE + 1} to Zep:`,
+        `Failed to sync batch ${batchNum}/${totalBatches} to Zep:`,
         error,
       );
+      errors.push({ batch: batchNum, error });
     }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(
+      `Failed to sync ${errors.length}/${totalBatches} batches to Zep for game ${gameId}`,
+    );
   }
 
   console.log(
@@ -143,7 +160,7 @@ function flattenMessageParts(parts: UIMessage["parts"]): string {
         state?: string;
         output?: unknown;
       };
-      if (toolPart.state === "output-available") {
+      if (toolPart.state === "output-available" && toolPart.toolName) {
         textParts.push(`[Used tool: ${toolPart.toolName}]`);
       }
     }
