@@ -114,13 +114,9 @@ export async function streamToUI(
         });
         break;
 
-      // Step boundaries
+      // Step boundaries - skip these as they're handled by the caller
       case "start-step":
-        writer.write({ type: "start-step" });
-        break;
-
       case "finish-step":
-        writer.write({ type: "finish-step" });
         break;
 
       // Stream lifecycle

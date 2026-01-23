@@ -177,6 +177,9 @@ export async function POST(req: Request) {
   const stream = createUIMessageStream({
     execute: async ({ writer }) => {
       try {
+        // Start a single step for the entire response
+        writer.write({ type: "start-step" });
+
         await ensureConversationExists(conversationId);
 
         const [config, context] = await Promise.all([
@@ -252,6 +255,9 @@ export async function POST(req: Request) {
             },
           },
         });
+
+        // End the step
+        writer.write({ type: "finish-step" });
       } catch (error) {
         console.error("Error in /api/chat2 stream:", error);
         writer.write({
