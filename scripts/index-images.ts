@@ -55,7 +55,7 @@ async function indexImages(): Promise<void> {
     // Read all files in images directory
     const files = await fs.readdir(imagesDir);
     const imageFiles = files.filter((f) =>
-      /\.(png|jpg|jpeg|gif|webp)$/i.test(f)
+      /\.(png|jpg|jpeg|gif|webp)$/i.test(f),
     );
 
     console.log(`📷 Found ${imageFiles.length} image(s)\n`);
