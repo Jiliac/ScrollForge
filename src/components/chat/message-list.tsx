@@ -8,6 +8,7 @@ import {
 } from "@/components/ai-elements/message";
 import { MessagePart } from "./message-part";
 import { CopyButton } from "./copy-button";
+import type { AgentProgressData } from "./agent-progress";
 
 function getMessageText(message: UIMessage): string {
   return (
@@ -16,6 +17,42 @@ function getMessageText(message: UIMessage): string {
       .map((p) => p.text || "")
       .join("") || ""
   );
+}
+
+type MessageParts = NonNullable<UIMessage["parts"]>;
+type AgentProgressPart = {
+  type: "data-agent-progress";
+  data: AgentProgressData;
+};
+
+/**
+ * Deduplicate agent progress parts - only keep the latest state per agent.
+ * This prevents showing both "Planning..." and "Planned: done" simultaneously.
+ */
+function dedupeAgentProgress(parts: MessageParts): MessageParts {
+  // Track latest progress per agent
+  const latestByAgent = new Map<
+    string,
+    { index: number; part: AgentProgressPart }
+  >();
+
+  parts.forEach((part, index) => {
+    if (part.type === "data-agent-progress") {
+      const progressPart = part as AgentProgressPart;
+      const agent = progressPart.data.agent;
+      latestByAgent.set(agent, { index, part: progressPart });
+    }
+  });
+
+  // Build result: non-progress parts + only latest progress per agent
+  const progressIndices = new Set(
+    Array.from(latestByAgent.values()).map((v) => v.index),
+  );
+
+  return parts.filter((part, index) => {
+    if (part.type !== "data-agent-progress") return true;
+    return progressIndices.has(index);
+  });
 }
 
 type EmptyStateProps = {
@@ -65,10 +102,13 @@ function MessageItem({ message }: MessageItemProps) {
     );
   }
 
+  // Dedupe agent progress to only show latest state per agent
+  const parts = dedupeAgentProgress(message.parts || []);
+
   return (
     <Message from="assistant">
       <MessageContent>
-        {message.parts?.map((part, index) => (
+        {parts.map((part, index) => (
           <MessagePart key={index} part={part} />
         ))}
       </MessageContent>

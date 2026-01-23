@@ -221,12 +221,7 @@ export async function POST(req: Request) {
             )
           : undefined;
 
-        // 3. Narrator
-        writer.write({
-          type: "data-agent-progress",
-          data: { agent: "narrator", status: "started" },
-        });
-
+        // 3. Narrator (no progress event - its output streams directly)
         const result = await runNarrator({
           gameSystem,
           messages: allMessages,
