@@ -255,15 +255,15 @@ export async function POST(req: Request) {
             },
           },
         });
-
-        // End the step
-        writer.write({ type: "finish-step" });
       } catch (error) {
         console.error("Error in /api/chat2 stream:", error);
         writer.write({
           type: "error",
           errorText: error instanceof Error ? error.message : "Unknown error",
         });
+      } finally {
+        // Always end the step, even on error
+        writer.write({ type: "finish-step" });
       }
     },
     onError: (error) =>
