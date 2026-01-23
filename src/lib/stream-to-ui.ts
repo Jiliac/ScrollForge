@@ -10,12 +10,18 @@ import type { StreamTextResult } from "ai";
  * - tool-call → tool-input-available
  * - tool-result → tool-output-available
  */
+// Tools with large inputs that shouldn't stream deltas to the frontend
+const SKIP_DELTA_TOOLS = new Set(["write_file", "edit_file"]);
+
 export async function streamToUI(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   result: StreamTextResult<any, any>,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   writer: any,
 ) {
+  // Track toolCallId -> toolName to filter deltas for file operations
+  const toolCallNames = new Map<string, string>();
+
   for await (const part of result.fullStream) {
     switch (part.type) {
       // Text events - pass through with renamed property
@@ -50,6 +56,7 @@ export async function streamToUI(
 
       // Tool input streaming
       case "tool-input-start":
+        toolCallNames.set(part.id, part.toolName);
         writer.write({
           type: "tool-input-start",
           toolCallId: part.id,
@@ -58,13 +65,19 @@ export async function streamToUI(
         });
         break;
 
-      case "tool-input-delta":
+      case "tool-input-delta": {
+        // Skip deltas for file operations (content can be very large)
+        const toolName = toolCallNames.get(part.id);
+        if (toolName && SKIP_DELTA_TOOLS.has(toolName)) {
+          break;
+        }
         writer.write({
           type: "tool-input-delta",
           toolCallId: part.id,
           inputTextDelta: part.delta,
         });
         break;
+      }
 
       case "tool-input-end":
         // Ignored in UI stream
