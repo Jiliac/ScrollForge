@@ -19,7 +19,7 @@ function getMessageText(message: UIMessage): string {
   );
 }
 
-type MessageParts = NonNullable<UIMessage["parts"]>;
+export type MessageParts = NonNullable<UIMessage["parts"]>;
 type AgentProgressPart = {
   type: "data-agent-progress";
   data: AgentProgressData;
@@ -29,7 +29,7 @@ type AgentProgressPart = {
  * Deduplicate agent progress parts - only keep the latest state per agent.
  * This prevents showing both "Planning..." and "Planned: done" simultaneously.
  */
-function dedupeAgentProgress(parts: MessageParts): MessageParts {
+export function dedupeAgentProgress(parts: MessageParts): MessageParts {
   // Track latest progress per agent
   const latestByAgent = new Map<
     string,
