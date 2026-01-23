@@ -1,4 +1,8 @@
-import { type UIMessage } from "ai";
+import {
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  type UIMessage,
+} from "ai";
 import { loadGameContext } from "@/lib/game-files";
 import { loadGameConfig } from "@/lib/game-config";
 import { ensureConversationExists } from "@/lib/conversations";
@@ -8,7 +12,8 @@ import { runWorldAdvance } from "@/agents/world-builder";
 import { runFactionTurn } from "@/agents/faction-turn";
 import { runNarrator } from "@/agents/narrator";
 import { getSystemPrompt } from "@/agents/prompts";
-import type { PreStep } from "@/agents/types";
+import type { PreStep, OrchestratorDecision } from "@/agents/types";
+import { streamToUI } from "@/lib/stream-to-ui";
 
 // Allow streaming responses up to 60 seconds.
 export const maxDuration = 60;
@@ -47,20 +52,92 @@ function validateRequestBody(
   };
 }
 
-async function executePreSteps(
+function buildContextMessage(context: string): UIMessage {
+  return {
+    id: "game-context",
+    role: "user",
+    parts: [{ type: "text", text: `# Game Context\n\n${context}` }],
+  };
+}
+
+function summarizeDecision(decision: OrchestratorDecision): string {
+  const parts: string[] = [];
+  const factionTurns = decision.preSteps.filter(
+    (s) => s.type === "faction_turn",
+  );
+  const worldAdvances = decision.preSteps.filter(
+    (s) => s.type === "world_advance",
+  );
+
+  if (factionTurns.length > 0) {
+    parts.push(`${factionTurns.length} faction turn(s)`);
+  }
+  if (worldAdvances.length > 0) {
+    parts.push(`${worldAdvances.length} world advance(s)`);
+  }
+  if (decision.suggestedTwists.length > 0) {
+    parts.push(`${decision.suggestedTwists.length} suggested twist(s)`);
+  }
+
+  return parts.length > 0 ? parts.join(", ") : "Direct to narrator";
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type StreamWriter = any;
+
+async function executePreStepsWithProgress(
   preSteps: PreStep[],
   context: string,
   conversationId: string,
+  writer: StreamWriter,
 ): Promise<string | undefined> {
   const results: string[] = [];
 
   for (const step of preSteps) {
     try {
       if (step.type === "world_advance") {
+        writer.write({
+          type: "data-agent-progress",
+          data: {
+            agent: "world_advance",
+            status: "started",
+            description: step.description,
+          },
+        });
+
         const res = await runWorldAdvance(step, context, conversationId);
+
+        writer.write({
+          type: "data-agent-progress",
+          data: {
+            agent: "world_advance",
+            status: "completed",
+            description: step.description,
+          },
+        });
+
         results.push(`[World Advance: ${step.description}] ${res.summary}`);
       } else if (step.type === "faction_turn") {
+        writer.write({
+          type: "data-agent-progress",
+          data: {
+            agent: "faction_turn",
+            status: "started",
+            faction: step.faction,
+          },
+        });
+
         const res = await runFactionTurn(step, context, conversationId);
+
+        writer.write({
+          type: "data-agent-progress",
+          data: {
+            agent: "faction_turn",
+            status: "completed",
+            faction: step.faction,
+          },
+        });
+
         results.push(`[${step.faction}] ${res.summary}`);
       } else {
         console.warn("executePreSteps: unsupported preStep type", step);
@@ -74,91 +151,123 @@ async function executePreSteps(
   return results.length > 0 ? results.join("\n\n") : undefined;
 }
 
-function buildContextMessage(context: string): UIMessage {
-  return {
-    id: "game-context",
-    role: "user",
-    parts: [{ type: "text", text: `# Game Context\n\n${context}` }],
-  };
-}
-
 export async function POST(req: Request) {
+  // Parse and validate request body first (outside the stream)
+  let body: unknown;
   try {
-    const body = await req.json();
-    const validation = validateRequestBody(body);
-
-    if (!validation.success) {
-      return new Response(JSON.stringify({ error: validation.error }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-
-    const { messages, conversationId } = validation.data;
-
-    await ensureConversationExists(conversationId);
-
-    const [config, context] = await Promise.all([
-      loadGameConfig(),
-      loadGameContext(),
-    ]);
-
-    const gameSystem = getSystemPrompt(config);
-    const allMessages = context
-      ? [buildContextMessage(context), ...messages]
-      : messages;
-
-    const decision = await runOrchestrator({
-      gameSystem,
-      messages: allMessages,
-      conversationId,
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
     });
+  }
 
-    // Only execute pre-steps if we have context (pre-step agents need it)
-    const preStepSummary = context
-      ? await executePreSteps(decision.preSteps, context, conversationId)
-      : undefined;
+  const validation = validateRequestBody(body);
 
-    const result = await runNarrator({
-      gameSystem,
-      messages: allMessages,
-      tools,
-      preStepSummary,
-      suggestedTwists: decision.suggestedTwists,
-      conversationId,
+  if (!validation.success) {
+    return new Response(JSON.stringify({ error: validation.error }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
     });
+  }
 
-    return result.toUIMessageStreamResponse({
-      messageMetadata: ({ part }) => {
-        if (part.type === "finish") {
-          return {
+  const { messages, conversationId } = validation.data;
+
+  const stream = createUIMessageStream({
+    execute: async ({ writer }) => {
+      try {
+        await ensureConversationExists(conversationId);
+
+        const [config, context] = await Promise.all([
+          loadGameConfig(),
+          loadGameContext(),
+        ]);
+
+        const gameSystem = getSystemPrompt(config);
+        const allMessages = context
+          ? [buildContextMessage(context), ...messages]
+          : messages;
+
+        // 1. Orchestrator
+        writer.write({
+          type: "data-agent-progress",
+          data: { agent: "orchestrator", status: "started" },
+        });
+
+        const decision = await runOrchestrator({
+          gameSystem,
+          messages: allMessages,
+          conversationId,
+        });
+
+        writer.write({
+          type: "data-agent-progress",
+          data: {
+            agent: "orchestrator",
+            status: "completed",
+            preStepsCount: decision.preSteps.length,
+            summary: summarizeDecision(decision),
+          },
+        });
+
+        // 2. Pre-steps with progress events
+        const preStepSummary = context
+          ? await executePreStepsWithProgress(
+              decision.preSteps,
+              context,
+              conversationId,
+              writer,
+            )
+          : undefined;
+
+        // 3. Narrator
+        writer.write({
+          type: "data-agent-progress",
+          data: { agent: "narrator", status: "started" },
+        });
+
+        const result = await runNarrator({
+          gameSystem,
+          messages: allMessages,
+          tools,
+          preStepSummary,
+          suggestedTwists: decision.suggestedTwists,
+          conversationId,
+        });
+
+        // Stream narrator output to UI
+        await streamToUI(result, writer);
+
+        // Write metadata at the end
+        const usage = await result.usage;
+        writer.write({
+          type: "message-metadata",
+          messageMetadata: {
             conversationId,
             orchestrator: {
               preSteps: decision.preSteps,
               suggestedTwists: decision.suggestedTwists,
-              // Only expose reasoning in development (may leak system prompt details)
               ...(isDev() && { reasoning: decision.reasoning }),
             },
             usage: {
-              inputTokens: part.totalUsage.inputTokens,
-              outputTokens: part.totalUsage.outputTokens,
-              totalTokens: part.totalUsage.totalTokens,
+              inputTokens: usage.inputTokens,
+              outputTokens: usage.outputTokens,
+              totalTokens: usage.totalTokens,
             },
-          };
-        }
-      },
-    });
-  } catch (error) {
-    console.error("Error in /api/chat2:", error);
-    return new Response(
-      JSON.stringify({
-        error: "Internal server error",
-        // Only expose error details in development
-        ...(isDev() && {
-          message: error instanceof Error ? error.message : "Unknown error",
-        }),
-      }),
-      { status: 500, headers: { "Content-Type": "application/json" } },
-    );
-  }
+          },
+        });
+      } catch (error) {
+        console.error("Error in /api/chat2 stream:", error);
+        writer.write({
+          type: "error",
+          errorText: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    },
+    onError: (error) =>
+      error instanceof Error ? error.message : String(error),
+  });
+
+  return createUIMessageStreamResponse({ stream });
 }

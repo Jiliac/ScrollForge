@@ -20,6 +20,10 @@ import {
 } from "@/components/ai-elements/prompt-input";
 import { useChatEffects } from "@/hooks/use-chat-effects";
 import { MessageList } from "@/components/chat/message-list";
+import {
+  AgentProgressIndicator,
+  type AgentProgressData,
+} from "@/components/chat/agent-progress";
 
 type TokenUsage = {
   inputTokens: number;
@@ -62,10 +66,26 @@ export function ChatSection({
     [conversationId],
   );
 
+  // Agent progress state for streaming status updates
+  const [agentProgress, setAgentProgress] = useState<AgentProgressData | null>(
+    null,
+  );
+
   const { messages, status, sendMessage } = useChat({
     id: conversationId,
     messages: initialMessages,
     transport,
+    onData: (part) => {
+      if (part.type === "data-agent-progress") {
+        const data = part.data as AgentProgressData;
+        // Clear progress when narrator starts (it will stream directly)
+        if (data.agent === "narrator" && data.status === "started") {
+          setAgentProgress(null);
+        } else {
+          setAgentProgress(data);
+        }
+      }
+    },
   });
 
   useChatEffects(messages, onToolComplete, onImageChange);
@@ -73,6 +93,13 @@ export function ChatSection({
   // Track last saved message count to avoid redundant saves
   const lastSavedCountRef = useRef(initialMessages?.length ?? 0);
   const [hasSavedInitial, setHasSavedInitial] = useState(false);
+
+  // Clear agent progress when response completes
+  useEffect(() => {
+    if (status === "ready") {
+      setAgentProgress(null);
+    }
+  }, [status]);
 
   // Save messages after each exchange completes
   useEffect(() => {
@@ -114,6 +141,7 @@ export function ChatSection({
       <Conversation className="flex-1">
         <ConversationContent>
           <MessageList messages={messages} />
+          {agentProgress && <AgentProgressIndicator progress={agentProgress} />}
         </ConversationContent>
         <ConversationScrollButton />
       </Conversation>
