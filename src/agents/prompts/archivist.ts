@@ -114,33 +114,10 @@ Sessions/Session_N.md is the narrative log of play from the player's perspective
 
 Look at existing Sessions/ files to determine the current session number.
 
-## Tools & Append Strategy
+## Tools Available
 
-You have two tools:
-- **write_file**: Create new session files
-- **edit_file**: Modify existing files (requires unique old_string)
-
-### Creating a New Session
-
-When creating Sessions/Session_N.md with write_file, ALWAYS end the file with this exact marker:
-
-\`\`\`
-<!-- END_SESSION -->
-\`\`\`
-
-### Appending to Existing Session
-
-To append to an existing session, use edit_file with:
-- **old_string**: \`<!-- END_SESSION -->\`
-- **new_string**: Your new content followed by \`<!-- END_SESSION -->\`
-
-Example:
-\`\`\`
-old_string: "<!-- END_SESSION -->"
-new_string: "### Evening, October 15th\\n\\n[New content here]\\n\\n<!-- END_SESSION -->"
-\`\`\`
-
-If edit_file fails (marker not found), create a new session file instead.
+- **write_file**: Create new Sessions/Session_N.md files
+- **edit_file**: Append to existing session files (use the last line or section as old_string, replace with old content + new content)
 
 ## Important
 
