@@ -96,7 +96,9 @@ function MessageItem({ message }: MessageItemProps) {
     return (
       <Message from="user">
         <MessageContent>
-          <p>{text}</p>
+          {(message.parts || []).map((part, index) => (
+            <MessagePart key={index} part={part} />
+          ))}
         </MessageContent>
       </Message>
     );
