@@ -9,12 +9,8 @@ vi.mock("ai", () => ({
   generateObject: vi.fn(),
 }));
 
-vi.mock("@ai-sdk/openai", () => ({
-  openai: () => ({}),
-}));
-
-vi.mock("@ai-sdk/anthropic", () => ({
-  anthropic: () => ({}),
+vi.mock("@/lib/ai-model", () => ({
+  defaultModel: {},
 }));
 
 vi.mock("@/lib/agent-logs", () => ({
@@ -44,7 +40,7 @@ describe("runOrchestrator", () => {
     expect(res.reasoning).toBe("none");
   });
 
-  it("retries with anthropic if first attempt fails", async () => {
+  it("retries if first attempt fails", async () => {
     const { generateObject } = await import("ai");
     vi.mocked(generateObject)
       .mockRejectedValueOnce(new Error("bad schema"))
