@@ -242,23 +242,33 @@ export async function POST(req: Request) {
         const narratorResponse = await result.text;
 
         // 4. Archivist (records session)
+        // Note: Pass original messages, not allMessages - archivist prepends context itself
         if (context) {
           writer.write({
             type: "data-agent-progress",
             data: { agent: "archivist", status: "started" },
           });
 
-          await runArchivist({
-            context,
-            messages: allMessages,
-            narratorResponse,
-            conversationId,
-          });
+          try {
+            await runArchivist({
+              context,
+              messages,
+              narratorResponse,
+              conversationId,
+            });
 
-          writer.write({
-            type: "data-agent-progress",
-            data: { agent: "archivist", status: "completed" },
-          });
+            writer.write({
+              type: "data-agent-progress",
+              data: { agent: "archivist", status: "completed" },
+            });
+          } catch (error) {
+            // Don't let archivist errors break the already-streamed narrator response
+            console.error("Archivist failed:", error);
+            writer.write({
+              type: "data-agent-progress",
+              data: { agent: "archivist", status: "completed" },
+            });
+          }
         }
 
         // Write metadata at the end
