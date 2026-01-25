@@ -68,7 +68,10 @@ describe("runArchivist", () => {
           toolCalls: [
             {
               toolName: "write_file",
-              input: { file_path: "Sessions/Session_1.md", content: "# Session 1" },
+              input: {
+                file_path: "Sessions/Session_1.md",
+                content: "# Session 1",
+              },
             },
           ],
         },
@@ -84,7 +87,10 @@ describe("runArchivist", () => {
 
     expect(res.sessionFile).toBe("Sessions/Session_1.md");
     expect(res.toolCalls).toEqual([
-      { toolName: "write_file", args: { file_path: "Sessions/Session_1.md", content: "# Session 1" } },
+      {
+        toolName: "write_file",
+        args: { file_path: "Sessions/Session_1.md", content: "# Session 1" },
+      },
     ]);
   });
 
