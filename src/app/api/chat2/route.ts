@@ -6,11 +6,12 @@ import {
 import { loadGameContext } from "@/lib/game-files";
 import { loadGameConfig } from "@/lib/game-config";
 import { ensureConversationExists } from "@/lib/conversations";
-import { tools } from "../chat/tools";
+import { narratorTools } from "../chat/tools";
 import { runOrchestrator } from "@/agents/orchestrator";
 import { runWorldAdvance } from "@/agents/world-builder";
 import { runFactionTurn } from "@/agents/faction-turn";
 import { runNarrator } from "@/agents/narrator";
+import { runArchivist } from "@/agents/archivist";
 import { getSystemPrompt } from "@/agents/prompts";
 import type { PreStep, OrchestratorDecision } from "@/agents/types";
 import { streamToUI } from "@/lib/stream-to-ui";
@@ -228,7 +229,7 @@ export async function POST(req: Request) {
         const result = await runNarrator({
           gameSystem,
           messages: allMessages,
-          tools,
+          tools: narratorTools,
           preStepSummary,
           suggestedTwists: decision.suggestedTwists,
           conversationId,
@@ -236,6 +237,39 @@ export async function POST(req: Request) {
 
         // Stream narrator output to UI
         await streamToUI(result, writer);
+
+        // Get narrator's full response text for archivist
+        const narratorResponse = await result.text;
+
+        // 4. Archivist (records session)
+        // Note: Pass original messages, not allMessages - archivist prepends context itself
+        if (context) {
+          writer.write({
+            type: "data-agent-progress",
+            data: { agent: "archivist", status: "started" },
+          });
+
+          try {
+            await runArchivist({
+              context,
+              messages,
+              narratorResponse,
+              conversationId,
+            });
+
+            writer.write({
+              type: "data-agent-progress",
+              data: { agent: "archivist", status: "completed" },
+            });
+          } catch (error) {
+            // Don't let archivist errors break the already-streamed narrator response
+            console.error("Archivist failed:", error);
+            writer.write({
+              type: "data-agent-progress",
+              data: { agent: "archivist", status: "completed" },
+            });
+          }
+        }
 
         // Write metadata at the end
         const usage = await result.usage;

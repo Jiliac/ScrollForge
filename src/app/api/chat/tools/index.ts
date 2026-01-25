@@ -34,3 +34,16 @@ export const worldAdvanceTools = {
   create_image: createImageTool,
   twist_of_fate: twistOfFateTool,
 };
+
+// Archivist tools: only file operations, no dice or images
+export const archivistTools = {
+  write_file: writeFileTool,
+  edit_file: editFileTool,
+};
+
+// Narrator tools: dice and images only, no file operations (archivist handles those)
+export const narratorTools = {
+  search_image: searchImageTool,
+  create_image: createImageTool,
+  twist_of_fate: twistOfFateTool,
+};

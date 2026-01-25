@@ -28,9 +28,10 @@ type AgentProgressPart = {
 /**
  * Deduplicate agent progress parts - only keep the latest state per agent.
  * This prevents showing both "Planning..." and "Planned: done" simultaneously.
+ * For faction_turn, we use agent+faction as the key to show each faction separately.
  */
 export function dedupeAgentProgress(parts: MessageParts): MessageParts {
-  // Track latest progress per agent
+  // Track latest progress per agent (use agent+faction for faction_turn)
   const latestByAgent = new Map<
     string,
     { index: number; part: AgentProgressPart }
@@ -39,8 +40,11 @@ export function dedupeAgentProgress(parts: MessageParts): MessageParts {
   parts.forEach((part, index) => {
     if (part.type === "data-agent-progress") {
       const progressPart = part as AgentProgressPart;
-      const agent = progressPart.data.agent;
-      latestByAgent.set(agent, { index, part: progressPart });
+      const { agent, faction } = progressPart.data;
+      // Use agent+faction as key for faction_turn to show each faction separately
+      const key =
+        agent === "faction_turn" && faction ? `${agent}:${faction}` : agent;
+      latestByAgent.set(key, { index, part: progressPart });
     }
   });
 
@@ -96,7 +100,9 @@ function MessageItem({ message }: MessageItemProps) {
     return (
       <Message from="user">
         <MessageContent>
-          <p>{text}</p>
+          {(message.parts || []).map((part, index) => (
+            <MessagePart key={index} part={part} />
+          ))}
         </MessageContent>
       </Message>
     );
