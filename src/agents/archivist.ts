@@ -1,0 +1,100 @@
+import { openai } from "@ai-sdk/openai";
+import {
+  convertToModelMessages,
+  generateText,
+  stepCountIs,
+  type UIMessage,
+} from "ai";
+import { getArchivistPrompt } from "./prompts";
+import { loadGameConfig } from "@/lib/game-config";
+import { archivistTools } from "@/app/api/chat/tools";
+import {
+  startAgentLog,
+  completeAgentLog,
+  failAgentLog,
+} from "@/lib/agent-logs";
+
+export type ArchivistResult = {
+  summary: string;
+  sessionFile?: string;
+  toolCalls: Array<{
+    toolName: string;
+    args: Record<string, unknown>;
+  }>;
+};
+
+export async function runArchivist(opts: {
+  context: string;
+  messages: UIMessage[];
+  narratorResponse: string;
+  conversationId?: string;
+}): Promise<ArchivistResult> {
+  const logId = opts.conversationId
+    ? await startAgentLog(opts.conversationId, "archivist", {
+        narratorResponseLength: opts.narratorResponse.length,
+        messageCount: opts.messages.length,
+      })
+    : null;
+
+  try {
+    const config = await loadGameConfig();
+    const systemPrompt = getArchivistPrompt(config, opts.narratorResponse);
+
+    const { text, steps } = await generateText({
+      model: openai("gpt-5.2"),
+      system: systemPrompt,
+      messages: await convertToModelMessages([
+        {
+          id: "game-context",
+          role: "user",
+          parts: [{ type: "text", text: `# Game Context\n\n${opts.context}` }],
+        },
+        ...opts.messages,
+      ]),
+      tools: archivistTools,
+      stopWhen: stepCountIs(10),
+    });
+
+    // Extract all tool calls from all steps
+    const toolCalls = (steps ?? []).flatMap((s) =>
+      (s.toolCalls ?? []).map((tc) => {
+        const tcAny = tc as Record<string, unknown>;
+        const rawArgs = tcAny.input ?? tcAny.args ?? {};
+        const args =
+          typeof rawArgs === "object" && rawArgs !== null
+            ? (rawArgs as Record<string, unknown>)
+            : {};
+        return { toolName: tc.toolName, args };
+      }),
+    );
+
+    // Find session file if any was written/edited
+    const sessionFile = toolCalls.find(
+      (tc) =>
+        (tc.toolName === "write_file" || tc.toolName === "edit_file") &&
+        typeof tc.args.file_path === "string" &&
+        tc.args.file_path.startsWith("Sessions/"),
+    )?.args.file_path as string | undefined;
+
+    const result: ArchivistResult = {
+      summary: text,
+      sessionFile,
+      toolCalls,
+    };
+
+    if (logId) await completeAgentLog(logId, result);
+    return result;
+  } catch (error) {
+    console.error(`Error running archivist:`, error);
+    if (logId) {
+      await failAgentLog(
+        logId,
+        error instanceof Error ? error.message : String(error),
+      );
+    }
+    throw new Error(
+      `Failed to run archivist: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
+    );
+  }
+}

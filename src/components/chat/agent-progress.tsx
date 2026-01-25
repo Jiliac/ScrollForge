@@ -1,10 +1,22 @@
 "use client";
 
-import { Loader2, CheckCircle2, Users, Globe, BookOpen } from "lucide-react";
+import {
+  Loader2,
+  CheckCircle2,
+  Users,
+  Globe,
+  BookOpen,
+  Archive,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export type AgentProgressData = {
-  agent: "orchestrator" | "faction_turn" | "world_advance" | "narrator";
+  agent:
+    | "orchestrator"
+    | "faction_turn"
+    | "world_advance"
+    | "narrator"
+    | "archivist";
   status: "started" | "completed";
   faction?: string;
   description?: string;
@@ -42,6 +54,11 @@ const AGENT_CONFIG: Record<AgentProgressData["agent"], AgentConfig> = {
     icon: BookOpen,
     startLabel: "Narrating...",
     doneLabel: null, // We don't show "completed" for narrator since it streams
+  },
+  archivist: {
+    icon: Archive,
+    startLabel: "Recording...",
+    doneLabel: "Recorded",
   },
 };
 

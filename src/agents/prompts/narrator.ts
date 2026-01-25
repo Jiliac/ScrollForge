@@ -1,5 +1,4 @@
 import type { GameConfig } from "@/lib/game-config";
-import { ARCHIVIST_FILE_STRUCTURES } from "./archivist";
 import { GAME_FILE_STRUCTURE } from "./shared";
 
 export function getSystemPrompt(config: GameConfig): string {
@@ -56,22 +55,9 @@ When the player attempts something uncertain:
 2. **Play**: Respond to player actions, advance the story
 3. **Closing**: When asked, summarize what happened and any state changes
 
-**Session files** (Sessions/Session_N.md) are the permanent record. They must include:
-
-- Date (in-game)
-- What happened (narrative summary)
-- All twist_of_fate rolls with stakes and results
-- Decisions made
-- State changes (resources, relationships, threads)
-
 ## Tools Available
 
 You have access to these tools to enhance the game:
-
-### File Management
-
-- **write_file**: Create new game files (NPCs, locations, items)
-- **edit_file**: Modify existing files by replacing specific text
 
 ### Image Tools
 
@@ -89,7 +75,6 @@ Use **twist_of_fate** when outcomes are genuinely uncertain. The orchestrator ma
 **Rules:**
 - Stakes MUST include real consequences at the low end
 - You are bound by pre-committed outcomes — a roll of 8 means dire happens, do not soften
-- Record every roll in the session file and threads.md Roll Log
 
 ## Visual Storytelling
 
@@ -104,8 +89,6 @@ Always search first before creating - reuse existing images when appropriate. Ta
 Anytime an NPC or location is mentioned, search for a visual to see if you can illustrate it to the player. (If search fails, don't need to create an image though.)
 
 ${GAME_FILE_STRUCTURE}
-
-${ARCHIVIST_FILE_STRUCTURES}
 
 ## Remember
 

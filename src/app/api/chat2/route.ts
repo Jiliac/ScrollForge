@@ -6,11 +6,12 @@ import {
 import { loadGameContext } from "@/lib/game-files";
 import { loadGameConfig } from "@/lib/game-config";
 import { ensureConversationExists } from "@/lib/conversations";
-import { tools } from "../chat/tools";
+import { narratorTools } from "../chat/tools";
 import { runOrchestrator } from "@/agents/orchestrator";
 import { runWorldAdvance } from "@/agents/world-builder";
 import { runFactionTurn } from "@/agents/faction-turn";
 import { runNarrator } from "@/agents/narrator";
+import { runArchivist } from "@/agents/archivist";
 import { getSystemPrompt } from "@/agents/prompts";
 import type { PreStep, OrchestratorDecision } from "@/agents/types";
 import { streamToUI } from "@/lib/stream-to-ui";
@@ -228,7 +229,7 @@ export async function POST(req: Request) {
         const result = await runNarrator({
           gameSystem,
           messages: allMessages,
-          tools,
+          tools: narratorTools,
           preStepSummary,
           suggestedTwists: decision.suggestedTwists,
           conversationId,
@@ -236,6 +237,29 @@ export async function POST(req: Request) {
 
         // Stream narrator output to UI
         await streamToUI(result, writer);
+
+        // Get narrator's full response text for archivist
+        const narratorResponse = await result.text;
+
+        // 4. Archivist (records session)
+        if (context) {
+          writer.write({
+            type: "data-agent-progress",
+            data: { agent: "archivist", status: "started" },
+          });
+
+          await runArchivist({
+            context,
+            messages: allMessages,
+            narratorResponse,
+            conversationId,
+          });
+
+          writer.write({
+            type: "data-agent-progress",
+            data: { agent: "archivist", status: "completed" },
+          });
+        }
 
         // Write metadata at the end
         const usage = await result.usage;

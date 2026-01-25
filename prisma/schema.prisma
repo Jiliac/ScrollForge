@@ -16,6 +16,7 @@ enum AgentType {
   faction_turn
   world_advance
   narrator
+  archivist
 }
 
 enum AgentLogStatus {
