@@ -1,4 +1,4 @@
-import { openai } from "@ai-sdk/openai";
+import { defaultModel } from "@/lib/ai-model";
 import {
   convertToModelMessages,
   generateText,
@@ -41,7 +41,7 @@ export async function runArchivist(opts: {
     const systemPrompt = getArchivistPrompt(config, opts.narratorResponse);
 
     const { text, steps } = await generateText({
-      model: openai("gpt-5.2"),
+      model: defaultModel,
       system: systemPrompt,
       messages: await convertToModelMessages([
         {

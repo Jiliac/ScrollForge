@@ -8,6 +8,7 @@ import { google } from "@ai-sdk/google";
  */
 // export const defaultModel = openai("gpt-5.2");
 export const defaultModel = google("gemini-3-flash-preview");
+// export const defaultModel = google("gemini-3-pro-preview");
 
 /**
  * Secondary model used for fallbacks or specific tasks if needed.

@@ -1,4 +1,4 @@
-import { openai } from "@ai-sdk/openai";
+import { defaultModel } from "@/lib/ai-model";
 import { generateText, stepCountIs } from "ai";
 import type { PreStep } from "./types";
 import { getWorldAdvancePrompt } from "./prompts";
@@ -37,7 +37,7 @@ export async function runWorldAdvance(
     const systemPrompt = getWorldAdvancePrompt(config, step.description);
 
     const { text, steps } = await generateText({
-      model: openai("gpt-5.2"),
+      model: defaultModel,
       system: systemPrompt,
       messages: [
         {

@@ -1,4 +1,4 @@
-import { openai } from "@ai-sdk/openai";
+import { defaultModel } from "@/lib/ai-model";
 import {
   convertToModelMessages,
   stepCountIs,
@@ -68,7 +68,7 @@ export async function runNarrator(opts: {
     : opts.messages;
 
   const result = streamText({
-    model: openai("gpt-5.2"),
+    model: defaultModel,
     system: opts.gameSystem || undefined,
     messages: await convertToModelMessages(messages),
     tools: opts.tools,
