@@ -1,13 +1,12 @@
 import { convertToModelMessages, generateObject, type UIMessage } from "ai";
 import { OrchestratorDecisionSchema, type OrchestratorDecision } from "./types";
-import { openai } from "@ai-sdk/openai";
+import { defaultModel } from "@/lib/ai-model";
 import { ORCHESTRATOR_SYSTEM } from "./prompts";
 import {
   startAgentLog,
   completeAgentLog,
   failAgentLog,
 } from "@/lib/agent-logs";
-import { anthropic } from "@ai-sdk/anthropic";
 
 export async function runOrchestrator(opts: {
   gameSystem: string;
@@ -29,7 +28,7 @@ export async function runOrchestrator(opts: {
     let object: OrchestratorDecision;
     try {
       const result = await generateObject({
-        model: openai("gpt-5.2"),
+        model: defaultModel,
         schema: OrchestratorDecisionSchema,
         system,
         messages: modelMessages,
@@ -42,7 +41,7 @@ export async function runOrchestrator(opts: {
         firstError instanceof Error ? firstError.message : String(firstError);
       try {
         const result = await generateObject({
-          model: anthropic("claude-opus-4-5-20251101"),
+          model: defaultModel,
           schema: OrchestratorDecisionSchema,
           system,
           messages: [
