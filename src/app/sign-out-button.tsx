@@ -10,7 +10,7 @@ export async function SignOutButton() {
   if (!user) return null;
 
   return (
-    <div className="fixed top-3 right-3 z-50 flex items-center gap-3 text-sm text-muted-foreground">
+    <div className="fixed top-4 right-16 h-9 z-50 flex items-center gap-3 text-sm text-muted-foreground">
       <span className="font-[family-name:var(--font-geist-mono)] text-xs">
         {user.email}
       </span>

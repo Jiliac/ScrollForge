@@ -14,15 +14,24 @@ import {
 } from "@/components/ui/card";
 
 export function LoginForm() {
-  const [error, formAction, isPending] = useActionState(
+  const [loginError, loginAction, loginPending] = useActionState(
     async (_prev: string | null, formData: FormData) => {
-      const action = formData.get("action") as string;
-      const result =
-        action === "signup" ? await signup(formData) : await login(formData);
+      const result = await login(formData);
       return result?.error ?? null;
     },
     null,
   );
+
+  const [signupError, signupAction, signupPending] = useActionState(
+    async (_prev: string | null, formData: FormData) => {
+      const result = await signup(formData);
+      return result?.error ?? null;
+    },
+    null,
+  );
+
+  const error = loginError || signupError;
+  const isPending = loginPending || signupPending;
 
   return (
     <Card className="w-full max-w-sm">
@@ -57,18 +66,14 @@ export function LoginForm() {
           {error && <p className="text-sm text-destructive">{error}</p>}
           <div className="flex gap-2">
             <Button
-              formAction={formAction}
-              name="action"
-              value="login"
+              formAction={loginAction}
               disabled={isPending}
               className="flex-1"
             >
               Sign in
             </Button>
             <Button
-              formAction={formAction}
-              name="action"
-              value="signup"
+              formAction={signupAction}
               disabled={isPending}
               variant="outline"
               className="flex-1"
