@@ -10,6 +10,7 @@ import { tools } from "./tools";
 import { loadGameConfig } from "@/lib/game-config";
 import { getSystemPrompt } from "@/agents/prompts";
 import { defaultModel } from "@/lib/ai-model";
+import { getOrCreateUser } from "@/lib/auth";
 
 export async function POST(req: Request) {
   const {
@@ -17,8 +18,10 @@ export async function POST(req: Request) {
     conversationId,
   }: { messages: UIMessage[]; conversationId: string } = await req.json();
 
+  const user = await getOrCreateUser();
+
   // Ensure conversation exists (client generates ID, server creates record if needed)
-  await ensureConversationExists(conversationId);
+  await ensureConversationExists(conversationId, user.id);
 
   console.log("Loading game config and context...");
   const [config, context] = await Promise.all([

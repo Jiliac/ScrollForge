@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Amiri, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { SignOutButton } from "./sign-out-button";
 
 const amiri = Amiri({
   variable: "--font-amiri",
@@ -28,6 +29,7 @@ export default function RootLayout({
       <body
         className={`${amiri.variable} ${geistMono.variable} antialiased font-[family-name:var(--font-amiri)]`}
       >
+        <SignOutButton />
         {children}
       </body>
     </html>

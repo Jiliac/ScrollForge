@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { NextRequest } from "next/server";
+import { requireUserId } from "@/lib/auth";
 
 function getGameFilesDir(): string {
   return (
@@ -12,6 +13,7 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
 ) {
+  await requireUserId();
   const { path: pathSegments } = await params;
   const imagePath = pathSegments.join("/");
 

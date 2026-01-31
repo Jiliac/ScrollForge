@@ -3,6 +3,7 @@ import {
   loadConversation,
   extractImagesFromMessages,
 } from "@/lib/conversations";
+import { requireUserId } from "@/lib/auth";
 import { ChatPageClient } from "./client";
 
 type Props = {
@@ -10,8 +11,9 @@ type Props = {
 };
 
 export default async function ChatPage({ params }: Props) {
+  const userId = await requireUserId();
   const { id } = await params;
-  const conversation = await loadConversation(id);
+  const conversation = await loadConversation(id, userId);
 
   if (!conversation) {
     notFound();

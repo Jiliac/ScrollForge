@@ -1,6 +1,8 @@
 import { getGameFilesDir, readMdFilesRecursively } from "@/lib/game-files";
+import { requireUserId } from "@/lib/auth";
 
 export async function GET() {
+  await requireUserId();
   try {
     const gameFilesDir = getGameFilesDir();
     const files = await readMdFilesRecursively(gameFilesDir, gameFilesDir);
