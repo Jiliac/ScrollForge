@@ -1,5 +1,5 @@
 import { prisma } from "./prisma";
-import type { AgentType } from "@/generated/prisma/client";
+import type { AgentType, AgentLogStatus } from "@/generated/prisma/client";
 
 export async function startAgentLog(
   conversationId: string,
@@ -21,9 +21,11 @@ export async function startAgentLog(
   }
 }
 
-export async function completeAgentLog(
+async function finishAgentLog(
+  callerName: string,
   logId: string | null,
-  output: Record<string, unknown>,
+  status: AgentLogStatus,
+  extras: { output?: string; error?: string },
 ): Promise<void> {
   if (!logId) return;
 
@@ -34,7 +36,7 @@ export async function completeAgentLog(
     });
 
     if (!log) {
-      console.warn(`completeAgentLog: log ${logId} not found, skipping`);
+      console.warn(`${callerName}: log ${logId} not found, skipping`);
       return;
     }
 
@@ -43,82 +45,32 @@ export async function completeAgentLog(
 
     await prisma.agentLog.update({
       where: { id: logId },
-      data: {
-        status: "completed",
-        output: JSON.stringify(output),
-        completedAt: now,
-        durationMs,
-      },
+      data: { status, completedAt: now, durationMs, ...extras },
     });
   } catch (err) {
-    console.warn(`completeAgentLog failed for ${logId}:`, err);
+    console.warn(`${callerName} failed for ${logId}:`, err);
   }
+}
+
+export async function completeAgentLog(
+  logId: string | null,
+  output: Record<string, unknown>,
+): Promise<void> {
+  return finishAgentLog("completeAgentLog", logId, "completed", {
+    output: JSON.stringify(output),
+  });
 }
 
 export async function failAgentLog(
   logId: string | null,
   error: string,
 ): Promise<void> {
-  if (!logId) return;
-
-  try {
-    const log = await prisma.agentLog.findUnique({
-      where: { id: logId },
-      select: { startedAt: true },
-    });
-
-    if (!log) {
-      console.warn(`failAgentLog: log ${logId} not found, skipping`);
-      return;
-    }
-
-    const now = new Date();
-    const durationMs = now.getTime() - log.startedAt.getTime();
-
-    await prisma.agentLog.update({
-      where: { id: logId },
-      data: {
-        status: "failed",
-        error,
-        completedAt: now,
-        durationMs,
-      },
-    });
-  } catch (err) {
-    console.warn(`failAgentLog failed for ${logId}:`, err);
-  }
+  return finishAgentLog("failAgentLog", logId, "failed", { error });
 }
 
 export async function refuseAgentLog(
   logId: string | null,
   reason: string,
 ): Promise<void> {
-  if (!logId) return;
-
-  try {
-    const log = await prisma.agentLog.findUnique({
-      where: { id: logId },
-      select: { startedAt: true },
-    });
-
-    if (!log) {
-      console.warn(`refuseAgentLog: log ${logId} not found, skipping`);
-      return;
-    }
-
-    const now = new Date();
-    const durationMs = now.getTime() - log.startedAt.getTime();
-
-    await prisma.agentLog.update({
-      where: { id: logId },
-      data: {
-        status: "refused",
-        error: reason,
-        completedAt: now,
-        durationMs,
-      },
-    });
-  } catch (err) {
-    console.warn(`refuseAgentLog failed for ${logId}:`, err);
-  }
+  return finishAgentLog("refuseAgentLog", logId, "refused", { error: reason });
 }
