@@ -56,8 +56,14 @@ export async function completeAgentLog(
   logId: string | null,
   output: Record<string, unknown>,
 ): Promise<void> {
+  let serialized: string;
+  try {
+    serialized = JSON.stringify(output);
+  } catch (err) {
+    serialized = `<unserializable output: ${err instanceof Error ? err.message : String(err)}>`;
+  }
   return finishAgentLog("completeAgentLog", logId, "completed", {
-    output: JSON.stringify(output),
+    output: serialized,
   });
 }
 
