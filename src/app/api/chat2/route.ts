@@ -6,7 +6,7 @@ import {
 import { loadGameContext } from "@/lib/game-files";
 import { loadGameConfig } from "@/lib/game-config";
 import { ensureConversationExists } from "@/lib/conversations";
-import { getOrCreateUser } from "@/lib/auth";
+import { requireUserId } from "@/lib/auth";
 import { narratorTools } from "../chat/tools";
 import { runOrchestrator } from "@/agents/orchestrator";
 import { runWorldAdvance } from "@/agents/world-builder";
@@ -176,7 +176,7 @@ export async function POST(req: Request) {
 
   const { messages, conversationId } = validation.data;
 
-  const user = await getOrCreateUser();
+  const userId = await requireUserId();
 
   const stream = createUIMessageStream({
     execute: async ({ writer }) => {
@@ -184,7 +184,7 @@ export async function POST(req: Request) {
         // Start a single step for the entire response
         writer.write({ type: "start-step" });
 
-        await ensureConversationExists(conversationId, user.id);
+        await ensureConversationExists(conversationId, userId);
 
         const [config, context] = await Promise.all([
           loadGameConfig(),

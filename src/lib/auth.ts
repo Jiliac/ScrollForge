@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { prisma } from "@/lib/prisma";
 
@@ -8,7 +10,7 @@ export async function requireUserId(): Promise<string> {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    throw new Response("Unauthorized", { status: 401 });
+    redirect("/login");
   }
 
   return user.id;
@@ -21,11 +23,11 @@ export async function getOrCreateUser() {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    throw new Response("Unauthorized", { status: 401 });
+    redirect("/login");
   }
 
   if (!user.email) {
-    throw new Response("Account has no email address", { status: 400 });
+    throw new Error("Account has no email address");
   }
 
   return prisma.user.upsert({
@@ -51,7 +53,7 @@ export async function requireConversationAccess(
   });
 
   if (!conversation) {
-    throw new Response("Not found", { status: 404 });
+    notFound();
   }
 
   return userId;
