@@ -1,6 +1,7 @@
 import { promises as fs } from "fs";
 import path from "path";
 import { NextRequest } from "next/server";
+import { requireUserId } from "@/lib/auth";
 
 function getGameFilesDir(): string {
   return (
@@ -12,15 +13,17 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ path: string[] }> },
 ) {
+  await requireUserId();
   const { path: pathSegments } = await params;
   const imagePath = pathSegments.join("/");
 
   // Only allow serving from images/ subdirectory
-  if (!imagePath || imagePath.includes("..")) {
+  const imagesBase = path.resolve(path.join(getGameFilesDir(), "images"));
+  const fullPath = path.resolve(path.join(imagesBase, imagePath));
+
+  if (!fullPath.startsWith(imagesBase + path.sep)) {
     return new Response("Not found", { status: 404 });
   }
-
-  const fullPath = path.join(getGameFilesDir(), "images", imagePath);
 
   try {
     const file = await fs.readFile(fullPath);

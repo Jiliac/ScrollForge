@@ -1,5 +1,6 @@
 import { type UIMessage } from "ai";
-import { ensureConversationExists, saveMessages } from "@/lib/conversations";
+import { saveMessages } from "@/lib/conversations";
+import { requireConversationAccess } from "@/lib/auth";
 
 export async function POST(
   req: Request,
@@ -8,7 +9,7 @@ export async function POST(
   const { id: conversationId } = await params;
   const { messages }: { messages: UIMessage[] } = await req.json();
 
-  await ensureConversationExists(conversationId);
+  await requireConversationAccess(conversationId);
   await saveMessages(conversationId, messages);
 
   return Response.json({ success: true });

@@ -1,0 +1,60 @@
+import { redirect } from "next/navigation";
+import { notFound } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { prisma } from "@/lib/prisma";
+
+export async function requireUserId(): Promise<string> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  return user.id;
+}
+
+export async function getOrCreateUser() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  if (!user.email) {
+    throw new Error("Account has no email address");
+  }
+
+  return prisma.user.upsert({
+    where: { id: user.id },
+    create: {
+      id: user.id,
+      email: user.email,
+    },
+    update: {
+      email: user.email,
+    },
+  });
+}
+
+export async function requireConversationAccess(
+  conversationId: string,
+): Promise<string> {
+  const userId = await requireUserId();
+
+  const conversation = await prisma.conversation.findFirst({
+    where: { id: conversationId, userId },
+    select: { id: true },
+  });
+
+  if (!conversation) {
+    notFound();
+  }
+
+  return userId;
+}
