@@ -81,6 +81,8 @@ model Message {
   role           String       // "user" | "assistant"
   parts          String       // JSON string of UIMessage parts
   createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
 }
 
 model AgentLog {

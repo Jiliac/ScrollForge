@@ -8,10 +8,14 @@ export async function GET(request: Request) {
   const safePath = next.startsWith("/") && !next.startsWith("//") ? next : "/";
 
   if (code) {
-    const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      return NextResponse.redirect(`${origin}${safePath}`);
+    try {
+      const supabase = await createClient();
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
+      if (!error) {
+        return NextResponse.redirect(`${origin}${safePath}`);
+      }
+    } catch {
+      // Network or unexpected error — fall through to login redirect
     }
   }
 

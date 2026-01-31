@@ -3,7 +3,12 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
   const supabase = await createClient();
-  await supabase.auth.signOut();
+
+  try {
+    await supabase.auth.signOut();
+  } catch {
+    // Sign-out failure — still redirect to login
+  }
 
   const { origin } = new URL(request.url);
   return NextResponse.redirect(`${origin}/login`, { status: 303 });

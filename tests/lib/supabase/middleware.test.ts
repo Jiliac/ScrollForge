@@ -39,8 +39,16 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  process.env.NEXT_PUBLIC_SUPABASE_URL = originalEnv.url;
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = originalEnv.key;
+  if (originalEnv.url === undefined) {
+    delete process.env.NEXT_PUBLIC_SUPABASE_URL;
+  } else {
+    process.env.NEXT_PUBLIC_SUPABASE_URL = originalEnv.url;
+  }
+  if (originalEnv.key === undefined) {
+    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  } else {
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = originalEnv.key;
+  }
 });
 
 describe("updateSession", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useRef } from "react";
 import { login, signup } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +30,13 @@ export function LoginForm() {
     null,
   );
 
-  const error = loginError || signupError;
+  const lastAction = useRef<"login" | "signup" | null>(null);
+  const error =
+    lastAction.current === "login"
+      ? loginError
+      : lastAction.current === "signup"
+        ? signupError
+        : null;
   const isPending = loginPending || signupPending;
 
   return (
@@ -67,6 +73,7 @@ export function LoginForm() {
           <div className="flex gap-2">
             <Button
               formAction={loginAction}
+              onClick={() => (lastAction.current = "login")}
               disabled={isPending}
               className="flex-1"
             >
@@ -74,6 +81,7 @@ export function LoginForm() {
             </Button>
             <Button
               formAction={signupAction}
+              onClick={() => (lastAction.current = "signup")}
               disabled={isPending}
               variant="outline"
               className="flex-1"

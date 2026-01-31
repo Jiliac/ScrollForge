@@ -16,7 +16,13 @@ BEGIN
 END $$;
 
 -- Lock down Prisma's internal table (no policies = no access via REST API)
-ALTER TABLE "_prisma_migrations" ENABLE ROW LEVEL SECURITY;
+-- Conditional because this table doesn't exist in Prisma's shadow database
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '_prisma_migrations') THEN
+    ALTER TABLE "_prisma_migrations" ENABLE ROW LEVEL SECURITY;
+  END IF;
+END $$;
 
 -- Enable RLS on all tables
 ALTER TABLE "User" ENABLE ROW LEVEL SECURITY;
@@ -32,6 +38,9 @@ CREATE POLICY "Users can read own row" ON "User"
 
 CREATE POLICY "Users can update own row" ON "User"
   FOR UPDATE USING (auth.uid()::text = id);
+
+CREATE POLICY "Users can insert own row" ON "User"
+  FOR INSERT WITH CHECK (auth.uid()::text = id);
 
 -- Game: read-only for all authenticated users (shared resource)
 CREATE POLICY "Authenticated users can read games" ON "Game"
