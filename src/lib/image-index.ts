@@ -9,12 +9,21 @@ export interface ImageEntry {
   referencedIn: string;
 }
 
+function parseTags(raw: string): string[] {
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 function dbToEntry(image: Image): ImageEntry {
   return {
     slug: image.slug,
     file: image.file,
     prompt: image.prompt,
-    tags: JSON.parse(image.tags) as string[],
+    tags: parseTags(image.tags),
     referencedIn: image.referencedIn,
   };
 }

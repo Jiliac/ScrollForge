@@ -54,22 +54,19 @@ describe("getCurrentGame", () => {
     expect(game).toEqual(mockGame);
   });
 
-  it("creates game when none exists for user", async () => {
-    const mockGame = { id: GAME_ID, filesDir: "/default/path" };
-
+  it("throws when no game exists for user", async () => {
     vi.doMock("@/lib/prisma", () => ({
       prisma: {
         game: {
           findFirst: vi.fn().mockResolvedValue(null),
-          create: vi.fn().mockResolvedValue(mockGame),
         },
       },
     }));
 
     const { getCurrentGame } = await import("@/lib/game-files");
-    const game = await getCurrentGame(USER_ID);
-
-    expect(game).toEqual(mockGame);
+    await expect(getCurrentGame(USER_ID)).rejects.toThrow(
+      "No game found. Please complete onboarding first.",
+    );
   });
 });
 

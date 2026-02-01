@@ -38,7 +38,10 @@ async function readMdFiles(
       const subFiles = await readMdFiles(fullPath, baseDir);
       files.push(...subFiles);
     } else if (entry.isFile() && entry.name.endsWith(".md")) {
-      const relativePath = path.relative(baseDir, fullPath);
+      const relativePath = path
+        .relative(baseDir, fullPath)
+        .split(path.sep)
+        .join("/");
       const content = await fs.readFile(fullPath, "utf-8");
       files.push({ relativePath, content });
     }

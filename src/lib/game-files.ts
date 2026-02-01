@@ -8,21 +8,21 @@ export function getGameFilesDir(): string {
   );
 }
 
-/** Get or create the Game record for the given user. */
+/** Get the Game record for the given user. Throws if no game exists. */
 export async function getCurrentGame(userId: string): Promise<{
   id: string;
   filesDir: string;
 }> {
-  const existing = await prisma.game.findFirst({
+  const game = await prisma.game.findFirst({
     where: { userId },
     orderBy: { createdAt: "desc" },
   });
 
-  if (existing) return existing;
+  if (!game) {
+    throw new Error("No game found. Please complete onboarding first.");
+  }
 
-  return prisma.game.create({
-    data: { filesDir: getGameFilesDir(), userId },
-  });
+  return game;
 }
 
 /** Convenience: just get the ID. */

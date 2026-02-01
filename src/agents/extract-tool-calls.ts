@@ -15,7 +15,7 @@ export function extractToolCalls(
         typeof rawArgs === "object" && rawArgs !== null
           ? (rawArgs as Record<string, unknown>)
           : {};
-      return { toolName: tc.toolName as string, args };
+      return { toolName: String(tc.toolName ?? ""), args };
     });
   });
 }

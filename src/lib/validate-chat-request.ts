@@ -1,4 +1,16 @@
 import type { UIMessage } from "ai";
+import { z } from "zod";
+
+const messageSchema = z.object({
+  id: z.string(),
+  role: z.enum(["system", "user", "assistant"]),
+  parts: z.array(z.record(z.unknown())),
+});
+
+const requestBodySchema = z.object({
+  conversationId: z.string().min(1),
+  messages: z.array(messageSchema).min(1),
+});
 
 export type ChatRequestBody = {
   messages: UIMessage[];
@@ -10,22 +22,14 @@ type ValidationResult =
   | { success: false; error: string };
 
 export function validateRequestBody(body: unknown): ValidationResult {
-  if (typeof body !== "object" || body === null) {
-    return { success: false, error: "Invalid request body" };
-  }
+  const result = requestBodySchema.safeParse(body);
 
-  const { messages, conversationId } = body as Record<string, unknown>;
-
-  if (!conversationId || typeof conversationId !== "string") {
-    return { success: false, error: "Missing or invalid conversationId" };
-  }
-
-  if (!messages || !Array.isArray(messages)) {
-    return { success: false, error: "Missing or invalid messages" };
+  if (!result.success) {
+    return { success: false, error: result.error.issues[0].message };
   }
 
   return {
     success: true,
-    data: { messages: messages as UIMessage[], conversationId },
+    data: result.data as ChatRequestBody,
   };
 }

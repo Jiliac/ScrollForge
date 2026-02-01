@@ -23,15 +23,7 @@ export function createFactionTools(gameId: string) {
   };
 }
 
-export function createWorldAdvanceTools(gameId: string) {
-  return {
-    write_file: makeWriteFile(gameId),
-    edit_file: makeEditFile(gameId),
-    search_image: makeSearchImage(gameId),
-    create_image: makeCreateImage(gameId),
-    twist_of_fate: twistOfFateTool,
-  };
-}
+export const createWorldAdvanceTools = createTools;
 
 export function createArchivistTools(gameId: string) {
   return {
