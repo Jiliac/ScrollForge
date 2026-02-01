@@ -54,6 +54,11 @@ export async function saveMessages(
   });
 }
 
+/**
+ * Load a conversation by ID. gameId is not required here because conversation
+ * IDs are globally unique (cuid) and the userId check enforces ownership.
+ * The gameId is implicit in the conversation record.
+ */
 export async function loadConversation(
   id: string,
   userId: string,

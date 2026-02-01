@@ -8,7 +8,11 @@ export function getGameFilesDir(): string {
   );
 }
 
-/** Get the Game record for the given user. Throws if no game exists. */
+/**
+ * Get the Game record for the given user. Returns the most recently created game.
+ * Throws if no game exists.
+ * TODO(phase-4): replace with explicit game selection when multi-game support lands.
+ */
 export async function getCurrentGame(userId: string): Promise<{
   id: string;
   filesDir: string;
