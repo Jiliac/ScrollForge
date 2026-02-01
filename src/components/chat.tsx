@@ -34,6 +34,20 @@ type TokenUsage = {
   totalTokens: number;
 };
 
+function createModeAwareTransport(
+  conversationId: string,
+  getModeApi: () => string,
+) {
+  return new DefaultChatTransport({
+    api: "/api/play",
+    body: () => ({ conversationId }),
+    prepareSendMessagesRequest: ({ messages, body }) => ({
+      body: { messages, ...body, conversationId },
+      api: getModeApi(),
+    }),
+  });
+}
+
 export type ChatSectionProps = {
   conversationId?: string;
   initialMessages?: UIMessage[];
@@ -53,7 +67,11 @@ export function ChatSection({
   const pathname = usePathname();
   const hasRedirectedRef = useRef(false);
 
-  const [mode, setMode] = useState<"play" | "ask">("play");
+  const [mode, setMode] = useState<ChatMode>("play");
+  const modeRef = useRef<ChatMode>(mode);
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
 
   // Generate stable conversationId upfront - either from props or new
   const conversationId = useMemo(
@@ -61,14 +79,12 @@ export function ChatSection({
     [initialConversationId],
   );
 
-  // Recreate transport when mode or conversationId changes
-  const transport = useMemo(
-    () =>
-      new DefaultChatTransport({
-        api: mode === "play" ? "/api/play" : "/api/ask",
-        body: { conversationId },
-      }),
-    [conversationId, mode],
+  // Stable transport — reads mode from ref at request time, not during render
+  // eslint-disable-next-line react-hooks/refs -- false positive: ref is read inside prepareSendMessagesRequest callback, not during render
+  const [transport] = useState(() =>
+    createModeAwareTransport(conversationId, () =>
+      modeRef.current === "play" ? "/api/play" : "/api/ask",
+    ),
   );
 
   const { messages, status, sendMessage } = useChat({
