@@ -8,6 +8,7 @@ vi.mock("@/lib/prisma", () => ({
   prisma: {
     user: { upsert: vi.fn() },
     conversation: { findFirst: vi.fn() },
+    game: { findFirst: vi.fn() },
   },
 }));
 
@@ -27,6 +28,7 @@ import {
   requireUserId,
   getOrCreateUser,
   requireConversationAccess,
+  requireGameAccess,
 } from "@/lib/auth";
 
 const mockCreateClient = vi.mocked(createClient);
@@ -112,5 +114,34 @@ describe("requireConversationAccess", () => {
       "NEXT_NOT_FOUND",
     );
     expect(mockNotFound).toHaveBeenCalled();
+  });
+});
+
+describe("requireGameAccess", () => {
+  it("returns userId when game belongs to user", async () => {
+    mockSupabaseUser({ id: "user-222" });
+    mockPrisma.game.findFirst.mockResolvedValue({ id: "game-1" } as never);
+
+    const result = await requireGameAccess("game-1");
+    expect(result).toBe("user-222");
+    expect(mockPrisma.game.findFirst).toHaveBeenCalledWith({
+      where: { id: "game-1", userId: "user-222" },
+      select: { id: true },
+    });
+  });
+
+  it("calls notFound when game not found or wrong user", async () => {
+    mockSupabaseUser({ id: "user-222" });
+    mockPrisma.game.findFirst.mockResolvedValue(null);
+
+    await expect(requireGameAccess("game-x")).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(mockNotFound).toHaveBeenCalled();
+  });
+
+  it("redirects to /login when unauthenticated", async () => {
+    mockSupabaseUser(null);
+
+    await expect(requireGameAccess("game-1")).rejects.toThrow("NEXT_REDIRECT");
+    expect(mockRedirect).toHaveBeenCalledWith("/login");
   });
 });
