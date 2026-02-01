@@ -11,12 +11,28 @@ import { loadGameConfig } from "@/lib/game-config";
 import { getSystemPrompt } from "@/agents/prompts";
 import { defaultModel } from "@/lib/ai-model";
 import { requireUserId } from "@/lib/auth";
+import { validateRequestBody } from "@/lib/validate-chat-request";
 
 export async function POST(req: Request) {
-  const {
-    messages,
-    conversationId,
-  }: { messages: UIMessage[]; conversationId: string } = await req.json();
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const validation = validateRequestBody(body);
+  if (!validation.success) {
+    return new Response(JSON.stringify({ error: validation.error }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const { messages, conversationId } = validation.data;
 
   const userId = await requireUserId();
   const game = await getCurrentGame(userId);

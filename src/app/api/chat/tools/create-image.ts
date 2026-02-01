@@ -92,29 +92,18 @@ EXISTING CHARACTER IN NEW SCENE (with ref):
           referencedIn: reference_file,
         });
 
-        // Update the markdown reference file in the DB
+        // Update the markdown reference file in the DB (atomic upsert)
         const refPath = normalizeGameFilePath(reference_file);
         const imageRef = `\n\n![${slug}](images/${filename})\n`;
+        const title = path.basename(refPath, ".md");
+        const initialContent = `# ${title}\n\n![${slug}](images/${filename})\n`;
 
-        const existing = await prisma.gameFile.findUnique({
-          where: { gameId_path: { gameId, path: refPath } },
-        });
-
-        if (existing) {
-          await prisma.gameFile.update({
-            where: { gameId_path: { gameId, path: refPath } },
-            data: { content: existing.content + imageRef },
-          });
-        } else {
-          const title = path.basename(refPath, ".md");
-          await prisma.gameFile.create({
-            data: {
-              gameId,
-              path: refPath,
-              content: `# ${title}\n\n![${slug}](images/${filename})\n`,
-            },
-          });
-        }
+        await prisma.$executeRaw`
+          INSERT INTO "GameFile" ("id", "gameId", "path", "content", "createdAt", "updatedAt")
+          VALUES (gen_random_uuid()::text, ${gameId}, ${refPath}, ${initialContent}, NOW(), NOW())
+          ON CONFLICT ("gameId", "path")
+          DO UPDATE SET "content" = "GameFile"."content" || ${imageRef}, "updatedAt" = NOW()
+        `;
 
         return {
           success: true,

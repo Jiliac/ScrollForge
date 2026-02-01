@@ -10,6 +10,7 @@ import {
   failAgentLog,
   refuseAgentLog,
 } from "@/lib/agent-logs";
+import { extractToolCalls } from "./extract-tool-calls";
 
 export type WorldAdvanceResult = {
   summary: string;
@@ -59,18 +60,7 @@ export async function runWorldAdvance(
       return { summary: `(refused) ${reason}`, toolCalls: [] };
     }
 
-    // Extract all tool calls from all steps (with null-safe access)
-    const toolCalls = (steps ?? []).flatMap((s) =>
-      (s.toolCalls ?? []).map((tc) => {
-        const tcAny = tc as Record<string, unknown>;
-        const rawArgs = tcAny.input ?? tcAny.args ?? {};
-        const args =
-          typeof rawArgs === "object" && rawArgs !== null
-            ? (rawArgs as Record<string, unknown>)
-            : {};
-        return { toolName: tc.toolName, args };
-      }),
-    );
+    const toolCalls = extractToolCalls(steps as Array<Record<string, unknown>>);
 
     const result = { summary: text, toolCalls };
     if (logId) await completeAgentLog(logId, result);

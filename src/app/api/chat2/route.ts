@@ -16,42 +16,13 @@ import { runArchivist } from "@/agents/archivist";
 import { getSystemPrompt } from "@/agents/prompts";
 import type { PreStep, OrchestratorDecision } from "@/agents/types";
 import { streamToUI } from "@/lib/stream-to-ui";
+import { validateRequestBody } from "@/lib/validate-chat-request";
 
 // Allow streaming responses up to 60 seconds.
 export const maxDuration = 60;
 
 function isDev(): boolean {
   return process.env.NODE_ENV === "development";
-}
-
-type ChatRequestBody = {
-  messages: UIMessage[];
-  conversationId: string;
-};
-
-function validateRequestBody(
-  body: unknown,
-):
-  | { success: true; data: ChatRequestBody }
-  | { success: false; error: string } {
-  if (typeof body !== "object" || body === null) {
-    return { success: false, error: "Invalid request body" };
-  }
-
-  const { messages, conversationId } = body as Record<string, unknown>;
-
-  if (!conversationId || typeof conversationId !== "string") {
-    return { success: false, error: "Missing or invalid conversationId" };
-  }
-
-  if (!messages || !Array.isArray(messages)) {
-    return { success: false, error: "Missing or invalid messages" };
-  }
-
-  return {
-    success: true,
-    data: { messages: messages as UIMessage[], conversationId },
-  };
 }
 
 function buildContextMessage(context: string): UIMessage {

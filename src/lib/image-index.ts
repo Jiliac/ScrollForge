@@ -57,25 +57,22 @@ export async function searchImages(
   gameId: string,
   query: string,
 ): Promise<ImageEntry | null> {
-  const q = query.toLowerCase();
-  const words = q.split(/\s+/).filter(Boolean);
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
 
-  const images = await prisma.image.findMany({
-    where: { gameId },
+  if (words.length === 0) return null;
+
+  const image = await prisma.image.findFirst({
+    where: {
+      gameId,
+      AND: words.map((word) => ({
+        OR: [
+          { slug: { contains: word, mode: "insensitive" as const } },
+          { prompt: { contains: word, mode: "insensitive" as const } },
+          { tags: { contains: word, mode: "insensitive" as const } },
+        ],
+      })),
+    },
   });
 
-  const found = images.find((img) => {
-    const slug = img.slug.toLowerCase();
-    const prompt = img.prompt.toLowerCase();
-    const tags = (JSON.parse(img.tags) as string[]).map((t) => t.toLowerCase());
-
-    return words.every(
-      (word) =>
-        slug.includes(word) ||
-        tags.some((tag) => tag.includes(word)) ||
-        prompt.includes(word),
-    );
-  });
-
-  return found ? dbToEntry(found) : null;
+  return image ? dbToEntry(image) : null;
 }

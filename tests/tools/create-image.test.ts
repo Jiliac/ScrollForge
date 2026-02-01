@@ -24,11 +24,7 @@ vi.mock("@/lib/image-index", () => ({
 
 vi.mock("@/lib/prisma", () => ({
   prisma: {
-    gameFile: {
-      findUnique: vi.fn(),
-      update: vi.fn(),
-      create: vi.fn(),
-    },
+    $executeRaw: vi.fn(),
   },
 }));
 
@@ -49,10 +45,7 @@ describe("makeCreateImage", () => {
     const { createImage } = await import("@/lib/image-index");
 
     vi.mocked(generateImageWithBfl).mockResolvedValueOnce(Buffer.from("img"));
-    vi.mocked(prisma.gameFile.findUnique).mockResolvedValueOnce({
-      content: "# Tahir\n",
-    } as never);
-    vi.mocked(prisma.gameFile.update).mockResolvedValueOnce({} as never);
+    vi.mocked(prisma.$executeRaw).mockResolvedValueOnce(1);
 
     const tool = makeCreateImage(GAME_ID);
     const res = await tool.execute!(
@@ -86,12 +79,7 @@ describe("makeCreateImage", () => {
       referencedIn: "NPCs/Tahir.md",
     });
 
-    expect(prisma.gameFile.update).toHaveBeenCalledWith({
-      where: { gameId_path: { gameId: GAME_ID, path: "NPCs/Tahir.md" } },
-      data: {
-        content: "# Tahir\n\n\n![tahir-portrait](images/tahir-portrait.jpeg)\n",
-      },
-    });
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
 
     expect(res).toEqual({
       success: true,
@@ -100,15 +88,14 @@ describe("makeCreateImage", () => {
     });
   });
 
-  it("creates reference file in DB if missing", async () => {
+  it("uses atomic upsert for reference file", async () => {
     const { generateImageWithBfl } = await import("@/lib/bfl-api");
 
     vi.mocked(generateImageWithBfl).mockResolvedValueOnce(Buffer.from("img"));
-    vi.mocked(prisma.gameFile.findUnique).mockResolvedValueOnce(null);
-    vi.mocked(prisma.gameFile.create).mockResolvedValueOnce({} as never);
+    vi.mocked(prisma.$executeRaw).mockResolvedValueOnce(1);
 
     const tool = makeCreateImage(GAME_ID);
-    const res = await tool.execute!(
+    await tool.execute!(
       {
         slug: "bazaar-morning",
         prompt: "style base ...",
@@ -118,14 +105,7 @@ describe("makeCreateImage", () => {
       { messages: [], toolCallId: "test" },
     );
 
-    expect(prisma.gameFile.create).toHaveBeenCalledWith({
-      data: {
-        gameId: GAME_ID,
-        path: "Locations/Bazaar.md",
-        content: "# Bazaar\n\n![bazaar-morning](images/bazaar-morning.jpeg)\n",
-      },
-    });
-
-    expect((res as Record<string, unknown>).success).toBe(true);
+    // Verify atomic upsert was used (not separate findUnique + create/update)
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
   });
 });

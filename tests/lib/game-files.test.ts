@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import path from "path";
 
 const GAME_ID = "test-game-id";
+const USER_ID = "test-user-id";
 
 describe("getGameFilesDir", () => {
   const originalEnv = process.env.GAME_FILES_DIR;
@@ -27,6 +28,48 @@ describe("getGameFilesDir", () => {
     expect(getGameFilesDir()).toBe(
       path.join(process.cwd(), "game_files_local"),
     );
+  });
+});
+
+describe("getCurrentGame", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("returns existing game for user", async () => {
+    const mockGame = { id: GAME_ID, filesDir: "/some/path" };
+
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: {
+        game: {
+          findFirst: vi.fn().mockResolvedValue(mockGame),
+          create: vi.fn(),
+        },
+      },
+    }));
+
+    const { getCurrentGame } = await import("@/lib/game-files");
+    const game = await getCurrentGame(USER_ID);
+
+    expect(game).toEqual(mockGame);
+  });
+
+  it("creates game when none exists for user", async () => {
+    const mockGame = { id: GAME_ID, filesDir: "/default/path" };
+
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: {
+        game: {
+          findFirst: vi.fn().mockResolvedValue(null),
+          create: vi.fn().mockResolvedValue(mockGame),
+        },
+      },
+    }));
+
+    const { getCurrentGame } = await import("@/lib/game-files");
+    const game = await getCurrentGame(USER_ID);
+
+    expect(game).toEqual(mockGame);
   });
 });
 
@@ -83,5 +126,20 @@ describe("loadGameContext", () => {
     expect(context).not.toContain("config.yaml");
     expect(context).not.toContain("style-guide.md");
     expect(context).toContain("story.md");
+  });
+
+  it("propagates database errors", async () => {
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: {
+        gameFile: {
+          findMany: vi.fn().mockRejectedValue(new Error("DB connection lost")),
+        },
+      },
+    }));
+
+    const { loadGameContext } = await import("@/lib/game-files");
+    await expect(loadGameContext(GAME_ID)).rejects.toThrow(
+      "DB connection lost",
+    );
   });
 });

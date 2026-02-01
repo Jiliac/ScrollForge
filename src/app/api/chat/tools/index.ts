@@ -2,8 +2,6 @@ import { makeWriteFile } from "./write-file";
 import { makeEditFile } from "./edit-file";
 import { makeSearchImage } from "./search-image";
 import { makeCreateImage } from "./create-image";
-export { twistOfFateTool } from "./twist-of-fate";
-
 import { twistOfFateTool } from "./twist-of-fate";
 
 export function createTools(gameId: string) {
