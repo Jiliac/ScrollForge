@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { createImageTool } from "@/app/api/chat/tools/create-image";
+import { makeCreateImage } from "@/app/api/chat/tools/create-image";
+
+const GAME_ID = "test-game-id";
 
 vi.mock("fs", () => ({
   promises: {
     mkdir: vi.fn(),
     writeFile: vi.fn(),
-    readFile: vi.fn(),
   },
 }));
 
@@ -21,26 +22,42 @@ vi.mock("@/lib/image-index", () => ({
   createImage: vi.fn(),
 }));
 
-describe("createImageTool", () => {
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    $executeRaw: vi.fn(),
+  },
+}));
+
+vi.mock("@/lib/normalize-path", () => ({
+  normalizeGameFilePath: (p: string) => p,
+}));
+
+import { prisma } from "@/lib/prisma";
+
+describe("makeCreateImage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("saves image, inserts DB record, and appends markdown reference", async () => {
+  it("saves image, inserts DB record, and updates markdown reference file", async () => {
     const fs = await import("fs");
     const { generateImageWithBfl } = await import("@/lib/bfl-api");
     const { createImage } = await import("@/lib/image-index");
 
     vi.mocked(generateImageWithBfl).mockResolvedValueOnce(Buffer.from("img"));
-    vi.mocked(fs.promises.readFile).mockResolvedValueOnce("# Tahir\n");
+    vi.mocked(prisma.$executeRaw).mockResolvedValueOnce(1);
 
-    const res = await createImageTool.execute({
-      slug: "tahir-portrait",
-      prompt: "style base ...",
-      tags: ["tahir"],
-      reference_file: "NPCs/Tahir.md",
-      reference_slugs: ["tahir-portrait-old"],
-    });
+    const tool = makeCreateImage(GAME_ID);
+    const res = await tool.execute!(
+      {
+        slug: "tahir-portrait",
+        prompt: "style base ...",
+        tags: ["tahir"],
+        reference_file: "NPCs/Tahir.md",
+        reference_slugs: ["tahir-portrait-old"],
+      },
+      { messages: [], toolCallId: "test" },
+    );
 
     expect(generateImageWithBfl).toHaveBeenCalledWith("style base ...", [
       "tahir-portrait-old",
@@ -54,7 +71,7 @@ describe("createImageTool", () => {
       expect.any(Buffer),
     );
 
-    expect(createImage).toHaveBeenCalledWith({
+    expect(createImage).toHaveBeenCalledWith(GAME_ID, {
       slug: "tahir-portrait",
       file: "tahir-portrait.jpeg",
       prompt: "style base ...",
@@ -62,11 +79,7 @@ describe("createImageTool", () => {
       referencedIn: "NPCs/Tahir.md",
     });
 
-    expect(fs.promises.writeFile).toHaveBeenCalledWith(
-      "/tmp/game/NPCs/Tahir.md",
-      "# Tahir\n\n\n![tahir-portrait](images/tahir-portrait.jpeg)\n",
-      "utf-8",
-    );
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
 
     expect(res).toEqual({
       success: true,
@@ -75,29 +88,24 @@ describe("createImageTool", () => {
     });
   });
 
-  it("creates reference file if missing", async () => {
-    const fs = await import("fs");
+  it("uses atomic upsert for reference file", async () => {
     const { generateImageWithBfl } = await import("@/lib/bfl-api");
 
     vi.mocked(generateImageWithBfl).mockResolvedValueOnce(Buffer.from("img"));
-    vi.mocked(fs.promises.readFile).mockRejectedValueOnce(new Error("missing"));
+    vi.mocked(prisma.$executeRaw).mockResolvedValueOnce(1);
 
-    const res = await createImageTool.execute({
-      slug: "bazaar-morning",
-      prompt: "style base ...",
-      tags: ["bazaar"],
-      reference_file: "Locations/Bazaar.md",
-    });
-
-    expect(fs.promises.mkdir).toHaveBeenCalledWith("/tmp/game/Locations", {
-      recursive: true,
-    });
-    expect(fs.promises.writeFile).toHaveBeenCalledWith(
-      "/tmp/game/Locations/Bazaar.md",
-      "# Bazaar\n\n![bazaar-morning](images/bazaar-morning.jpeg)\n",
-      "utf-8",
+    const tool = makeCreateImage(GAME_ID);
+    await tool.execute!(
+      {
+        slug: "bazaar-morning",
+        prompt: "style base ...",
+        tags: ["bazaar"],
+        reference_file: "Locations/Bazaar.md",
+      },
+      { messages: [], toolCallId: "test" },
     );
 
-    expect(res.success).toBe(true);
+    // Verify atomic upsert was used (not separate findUnique + create/update)
+    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
   });
 });

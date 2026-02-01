@@ -1,38 +1,44 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { writeFileTool } from "@/app/api/chat/tools/write-file";
+import { makeWriteFile } from "@/app/api/chat/tools/write-file";
 
-vi.mock("fs", () => ({
-  promises: {
-    mkdir: vi.fn(),
-    writeFile: vi.fn(),
+const GAME_ID = "test-game-id";
+
+vi.mock("@/lib/prisma", () => ({
+  prisma: {
+    gameFile: {
+      upsert: vi.fn(),
+    },
   },
 }));
 
-vi.mock("@/lib/game-files", () => ({
-  getGameFilesDir: () => "/tmp/game",
+vi.mock("@/lib/normalize-path", () => ({
+  normalizeGameFilePath: (p: string) => p,
 }));
 
-describe("writeFileTool", () => {
+import { prisma } from "@/lib/prisma";
+
+describe("makeWriteFile", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("writes under GAME_FILES_DIR and creates parent folders", async () => {
-    const fs = await import("fs");
+  it("upserts a game file in the database", async () => {
+    vi.mocked(prisma.gameFile.upsert).mockResolvedValueOnce({} as never);
 
-    const res = await writeFileTool.execute({
-      file_path: "NPCs/Tahir.md",
-      content: "# Tahir",
-    });
-
-    expect(fs.promises.mkdir).toHaveBeenCalledWith("/tmp/game/NPCs", {
-      recursive: true,
-    });
-    expect(fs.promises.writeFile).toHaveBeenCalledWith(
-      "/tmp/game/NPCs/Tahir.md",
-      "# Tahir",
-      "utf-8",
+    const tool = makeWriteFile(GAME_ID);
+    const res = await tool.execute!(
+      {
+        file_path: "NPCs/Tahir.md",
+        content: "# Tahir",
+      },
+      { messages: [], toolCallId: "test" },
     );
+
+    expect(prisma.gameFile.upsert).toHaveBeenCalledWith({
+      where: { gameId_path: { gameId: GAME_ID, path: "NPCs/Tahir.md" } },
+      create: { gameId: GAME_ID, path: "NPCs/Tahir.md", content: "# Tahir" },
+      update: { content: "# Tahir" },
+    });
     expect(res).toEqual({ success: true, path: "NPCs/Tahir.md" });
   });
 });

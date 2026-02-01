@@ -44,10 +44,12 @@ async function indexImages(): Promise<void> {
     }
 
     // Get current game ID
+    const userId =
+      process.env.SEED_USER_ID || "4945e9a2-202b-477f-9b9e-e3b2d56b951f";
     const game = await prisma.game.upsert({
       where: { filesDir: gameFilesDir },
       update: {},
-      create: { filesDir: gameFilesDir },
+      create: { filesDir: gameFilesDir, userId },
     });
 
     console.log(`🎮 Using Game ID: ${game.id}`);

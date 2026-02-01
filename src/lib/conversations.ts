@@ -1,12 +1,11 @@
 import { prisma } from "./prisma";
 import type { UIMessage } from "ai";
-import { getCurrentGameId } from "./game-files";
 
 export async function createConversation(
   userId: string,
+  gameId: string,
   id?: string,
 ): Promise<string> {
-  const gameId = await getCurrentGameId();
   const conversation = await prisma.conversation.create({
     data: id ? { id, gameId, userId } : { gameId, userId },
   });
@@ -16,8 +15,8 @@ export async function createConversation(
 export async function ensureConversationExists(
   id: string,
   userId: string,
+  gameId: string,
 ): Promise<void> {
-  const gameId = await getCurrentGameId();
   const existing = await prisma.conversation.findFirst({
     where: { id, gameId, userId },
   });
@@ -55,13 +54,17 @@ export async function saveMessages(
   });
 }
 
+/**
+ * Load a conversation by ID. gameId is not required here because conversation
+ * IDs are globally unique (cuid) and the userId check enforces ownership.
+ * The gameId is implicit in the conversation record.
+ */
 export async function loadConversation(
   id: string,
   userId: string,
 ): Promise<{ id: string; messages: UIMessage[] } | null> {
-  const gameId = await getCurrentGameId();
   const conversation = await prisma.conversation.findFirst({
-    where: { id, gameId, userId },
+    where: { id, userId },
     include: {
       messages: {
         orderBy: { createdAt: "asc" },
@@ -71,11 +74,17 @@ export async function loadConversation(
 
   if (!conversation) return null;
 
-  const messages: UIMessage[] = conversation.messages.map((msg) => ({
-    id: msg.id,
-    role: msg.role as "user" | "assistant",
-    parts: JSON.parse(msg.parts),
-  }));
+  const messages: UIMessage[] = conversation.messages.flatMap((msg) => {
+    const role = msg.role;
+    if (role !== "user" && role !== "assistant") return [];
+    try {
+      return [{ id: msg.id, role, parts: JSON.parse(msg.parts) }];
+    } catch {
+      return [
+        { id: msg.id, role, parts: [{ type: "text" as const, text: "" }] },
+      ];
+    }
+  });
 
   return { id: conversation.id, messages };
 }

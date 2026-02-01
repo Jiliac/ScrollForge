@@ -4,29 +4,46 @@ import {
   stepCountIs,
   type UIMessage,
 } from "ai";
-import { loadGameContext } from "@/lib/game-files";
+import { getCurrentGame, loadGameContext } from "@/lib/game-files";
 import { ensureConversationExists } from "@/lib/conversations";
-import { tools } from "./tools";
+import { createTools } from "./tools";
 import { loadGameConfig } from "@/lib/game-config";
 import { getSystemPrompt } from "@/agents/prompts";
 import { defaultModel } from "@/lib/ai-model";
 import { requireUserId } from "@/lib/auth";
+import { validateRequestBody } from "@/lib/validate-chat-request";
 
 export async function POST(req: Request) {
-  const {
-    messages,
-    conversationId,
-  }: { messages: UIMessage[]; conversationId: string } = await req.json();
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const validation = validateRequestBody(body);
+  if (!validation.success) {
+    return new Response(JSON.stringify({ error: validation.error }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const { messages, conversationId } = validation.data;
 
   const userId = await requireUserId();
+  const game = await getCurrentGame(userId);
+  const gameId = game.id;
 
-  // Ensure conversation exists (client generates ID, server creates record if needed)
-  await ensureConversationExists(conversationId, userId);
+  await ensureConversationExists(conversationId, userId, gameId);
 
   console.log("Loading game config and context...");
   const [config, context] = await Promise.all([
-    loadGameConfig(),
-    loadGameContext(),
+    loadGameConfig(gameId),
+    loadGameContext(gameId),
   ]);
   const system = getSystemPrompt(config);
 
@@ -40,14 +57,14 @@ export async function POST(req: Request) {
 
   const allMessages = contextMessage ? [contextMessage, ...messages] : messages;
 
+  const tools = createTools(gameId);
+
   const result = streamText({
     model: defaultModel,
     system: system || undefined,
     messages: await convertToModelMessages(allMessages),
     tools,
     stopWhen: stepCountIs(20),
-    // Note: Messages are saved by the client after stream completes
-    // to preserve full UIMessage structure including tool calls
   });
 
   return result.toUIMessageStreamResponse({

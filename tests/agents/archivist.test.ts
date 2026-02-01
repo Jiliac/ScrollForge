@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { runArchivist } from "@/agents/archivist";
 
+const GAME_ID = "test-game-id";
+
 vi.mock("ai", () => ({
   generateText: vi.fn(),
   convertToModelMessages: vi.fn().mockResolvedValue([]),
@@ -26,7 +28,7 @@ vi.mock("@/agents/prompts", () => ({
 }));
 
 vi.mock("@/app/api/chat/tools", () => ({
-  archivistTools: {},
+  createArchivistTools: () => ({}),
 }));
 
 vi.mock("@/lib/agent-logs", () => ({
@@ -51,6 +53,7 @@ describe("runArchivist", () => {
       messages: [],
       narratorResponse: "Just a clarification",
       conversationId: "conv1",
+      gameId: GAME_ID,
     });
 
     expect(res.summary).toBe("Nothing to record.");
@@ -83,6 +86,7 @@ describe("runArchivist", () => {
       messages: [],
       narratorResponse: "The player decided to...",
       conversationId: "conv1",
+      gameId: GAME_ID,
     });
 
     expect(res.sessionFile).toBe("Sessions/Session_1.md");
@@ -120,6 +124,7 @@ describe("runArchivist", () => {
       messages: [],
       narratorResponse: "The player rolled twist_of_fate...",
       conversationId: "conv1",
+      gameId: GAME_ID,
     });
 
     expect(res.sessionFile).toBe("Sessions/Session_2.md");
@@ -137,6 +142,7 @@ describe("runArchivist", () => {
         messages: [],
         narratorResponse: "test",
         conversationId: "conv1",
+        gameId: GAME_ID,
       }),
     ).rejects.toThrow("Failed to run archivist");
 

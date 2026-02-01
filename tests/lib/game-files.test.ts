@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import path from "path";
 
+const GAME_ID = "test-game-id";
+const USER_ID = "test-user-id";
+
 describe("getGameFilesDir", () => {
   const originalEnv = process.env.GAME_FILES_DIR;
 
@@ -28,109 +31,64 @@ describe("getGameFilesDir", () => {
   });
 });
 
-describe("readMdFilesRecursively", () => {
+describe("getCurrentGame", () => {
   beforeEach(() => {
     vi.resetModules();
   });
 
-  it("reads markdown files recursively", async () => {
-    vi.doMock("fs", () => ({
-      promises: {
-        readdir: vi.fn().mockImplementation((dir: string) => {
-          if (dir === "/test") {
-            return Promise.resolve([
-              {
-                name: "file1.md",
-                isDirectory: () => false,
-                isFile: () => true,
-              },
-              { name: "subdir", isDirectory: () => true, isFile: () => false },
-            ]);
-          }
-          if (dir === "/test/subdir") {
-            return Promise.resolve([
-              {
-                name: "file2.md",
-                isDirectory: () => false,
-                isFile: () => true,
-              },
-            ]);
-          }
-          return Promise.resolve([]);
-        }),
-        readFile: vi.fn().mockImplementation((filePath: string) => {
-          if (filePath === "/test/file1.md") return Promise.resolve("content1");
-          if (filePath === "/test/subdir/file2.md")
-            return Promise.resolve("content2");
-          return Promise.resolve("");
-        }),
+  it("returns existing game for user", async () => {
+    const mockGame = { id: GAME_ID, filesDir: "/some/path" };
+
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: {
+        game: {
+          findFirst: vi.fn().mockResolvedValue(mockGame),
+          create: vi.fn(),
+        },
       },
     }));
 
-    const { readMdFilesRecursively } = await import("@/lib/game-files");
-    const files = await readMdFilesRecursively("/test", "/test");
+    const { getCurrentGame } = await import("@/lib/game-files");
+    const game = await getCurrentGame(USER_ID);
 
-    expect(files).toHaveLength(2);
-    expect(files).toContainEqual({
-      relativePath: "file1.md",
-      content: "content1",
-    });
-    expect(files).toContainEqual({
-      relativePath: "subdir/file2.md",
-      content: "content2",
-    });
+    expect(game).toEqual(mockGame);
   });
 
-  it("ignores videos and images directories", async () => {
-    vi.doMock("fs", () => ({
-      promises: {
-        readdir: vi.fn().mockResolvedValue([
-          { name: "images", isDirectory: () => true, isFile: () => false },
-          { name: "videos", isDirectory: () => true, isFile: () => false },
-          { name: "file.md", isDirectory: () => false, isFile: () => true },
-        ]),
-        readFile: vi.fn().mockResolvedValue("content"),
+  it("throws when no game exists for user", async () => {
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: {
+        game: {
+          findFirst: vi.fn().mockResolvedValue(null),
+        },
       },
     }));
 
-    const { readMdFilesRecursively } = await import("@/lib/game-files");
-    const files = await readMdFilesRecursively("/test", "/test");
-
-    expect(files).toHaveLength(1);
-    expect(files[0].relativePath).toBe("file.md");
+    const { getCurrentGame } = await import("@/lib/game-files");
+    await expect(getCurrentGame(USER_ID)).rejects.toThrow(
+      "No game found. Please complete onboarding first.",
+    );
   });
 });
 
 describe("loadGameContext", () => {
   beforeEach(() => {
     vi.resetModules();
-    process.env.GAME_FILES_DIR = "/test-game";
   });
 
-  it("builds context from markdown files", async () => {
-    vi.doMock("fs", () => ({
-      promises: {
-        readdir: vi.fn().mockResolvedValue([
-          { name: "story.md", isDirectory: () => false, isFile: () => true },
-          { name: "world.md", isDirectory: () => false, isFile: () => true },
-        ]),
-        readFile: vi.fn().mockImplementation((filePath: string) => {
-          if (filePath.endsWith("story.md"))
-            return Promise.resolve("Story content");
-          if (filePath.endsWith("world.md"))
-            return Promise.resolve("World content");
-          return Promise.resolve("");
-        }),
+  it("builds context from game files in the database", async () => {
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: {
+        gameFile: {
+          findMany: vi.fn().mockResolvedValue([
+            { path: "story.md", content: "Story content", gameId: GAME_ID },
+            { path: "world.md", content: "World content", gameId: GAME_ID },
+          ]),
+        },
       },
     }));
 
-    // Mock prisma to avoid DB calls
-    vi.doMock("@/lib/prisma", () => ({
-      prisma: { game: { upsert: vi.fn() } },
-    }));
-
     const { loadGameContext } = await import("@/lib/game-files");
-    const context = await loadGameContext();
+    const context = await loadGameContext(GAME_ID);
 
     expect(context).toContain("## story.md");
     expect(context).toContain("Story content");
@@ -139,30 +97,46 @@ describe("loadGameContext", () => {
   });
 
   it("skips config files", async () => {
-    vi.doMock("fs", () => ({
-      promises: {
-        readdir: vi.fn().mockResolvedValue([
-          { name: "config.yaml", isDirectory: () => false, isFile: () => true },
-          {
-            name: "style-guide.md",
-            isDirectory: () => false,
-            isFile: () => true,
-          },
-          { name: "story.md", isDirectory: () => false, isFile: () => true },
-        ]),
-        readFile: vi.fn().mockResolvedValue("content"),
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: {
+        gameFile: {
+          findMany: vi.fn().mockResolvedValue([
+            {
+              path: "config.yaml",
+              content: "config content",
+              gameId: GAME_ID,
+            },
+            {
+              path: "style-guide.md",
+              content: "style content",
+              gameId: GAME_ID,
+            },
+            { path: "story.md", content: "story content", gameId: GAME_ID },
+          ]),
+        },
       },
     }));
 
-    vi.doMock("@/lib/prisma", () => ({
-      prisma: { game: { upsert: vi.fn() } },
-    }));
-
     const { loadGameContext } = await import("@/lib/game-files");
-    const context = await loadGameContext();
+    const context = await loadGameContext(GAME_ID);
 
     expect(context).not.toContain("config.yaml");
     expect(context).not.toContain("style-guide.md");
     expect(context).toContain("story.md");
+  });
+
+  it("propagates database errors", async () => {
+    vi.doMock("@/lib/prisma", () => ({
+      prisma: {
+        gameFile: {
+          findMany: vi.fn().mockRejectedValue(new Error("DB connection lost")),
+        },
+      },
+    }));
+
+    const { loadGameContext } = await import("@/lib/game-files");
+    await expect(loadGameContext(GAME_ID)).rejects.toThrow(
+      "DB connection lost",
+    );
   });
 });

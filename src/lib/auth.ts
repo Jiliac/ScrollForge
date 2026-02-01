@@ -16,7 +16,12 @@ export async function requireUserId(): Promise<string> {
   return user.id;
 }
 
-export async function getOrCreateUser() {
+export async function getOrCreateUser(): Promise<{
+  id: string;
+  email: string;
+  name: string | null;
+  createdAt: Date;
+}> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -53,6 +58,21 @@ export async function requireConversationAccess(
   });
 
   if (!conversation) {
+    notFound();
+  }
+
+  return userId;
+}
+
+export async function requireGameAccess(gameId: string): Promise<string> {
+  const userId = await requireUserId();
+
+  const game = await prisma.game.findFirst({
+    where: { id: gameId, userId },
+    select: { id: true },
+  });
+
+  if (!game) {
     notFound();
   }
 

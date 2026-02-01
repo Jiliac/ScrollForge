@@ -5,9 +5,12 @@ import { z } from "zod";
 import { getGameFilesDir } from "@/lib/game-files";
 import { createImage } from "@/lib/image-index";
 import { generateImageWithBfl } from "@/lib/bfl-api";
+import { prisma } from "@/lib/prisma";
+import { normalizeGameFilePath } from "@/lib/normalize-path";
 
-export const createImageTool = tool({
-  description: `Generate a new image using FLUX AI. Saves to images folder, updates index, and adds reference to a markdown file.
+export function makeCreateImage(gameId: string) {
+  return tool({
+    description: `Generate a new image using FLUX AI. Saves to images folder, updates index, and adds reference to a markdown file.
 
 ## FLUX Prompt Structure (CRITICAL)
 FLUX weighs earlier information more heavily. Structure prompts as:
@@ -35,78 +38,84 @@ NEW CHARACTER (no ref):
 
 EXISTING CHARACTER IN NEW SCENE (with ref):
 "[Style base]. The same person from reference, preserve exact facial features. Change setting to: [new environment]. [Lighting/atmosphere]."`,
-  inputSchema: z.object({
-    slug: z
-      .string()
-      .describe(
-        "Unique identifier for the image. Format: 'subject-context' (e.g., 'tahir-portrait', 'tahir-workshop', 'bazaar-morning')",
-      ),
-    prompt: z
-      .string()
-      .describe(
-        "FLUX prompt following the structure above. Start with style base, then subject, then scene details. Be visually specific (colors, lighting, composition) not narratively descriptive.",
-      ),
-    tags: z
-      .array(z.string())
-      .describe(
-        "Tags for searching. Include: character name if applicable, location, scene type (e.g., ['tahir', 'workshop', 'action'] or ['bazaar', 'location', 'exterior'])",
-      ),
-    reference_file: z
-      .string()
-      .describe(
-        "Markdown file to add image reference to (e.g., 'NPCs/Tahir.md' or 'Locations/Workshop.md')",
-      ),
-    reference_slugs: z
-      .array(z.string())
-      .optional()
-      .describe(
-        "USE SPARINGLY. Only for putting an existing character in a new scene. Pass ONE slug only (the character's portrait). Prompt must include explicit preservation language. Do not use for style - use style base in prompt instead.",
-      ),
-  }),
-  execute: async ({ slug, prompt, tags, reference_file, reference_slugs }) => {
-    try {
-      const imageBuffer = await generateImageWithBfl(prompt, reference_slugs);
-
-      const gameFilesDir = getGameFilesDir();
-      const imagesDir = path.join(gameFilesDir, "images");
-      await fs.mkdir(imagesDir, { recursive: true });
-
-      const filename = `${slug}.jpeg`;
-      await fs.writeFile(path.join(imagesDir, filename), imageBuffer);
-
-      await createImage({
-        slug,
-        file: filename,
-        prompt,
-        tags,
-        referencedIn: reference_file,
-      });
-
-      const refFilePath = path.join(gameFilesDir, reference_file);
+    inputSchema: z.object({
+      slug: z
+        .string()
+        .describe(
+          "Unique identifier for the image. Format: 'subject-context' (e.g., 'tahir-portrait', 'tahir-workshop', 'bazaar-morning')",
+        ),
+      prompt: z
+        .string()
+        .describe(
+          "FLUX prompt following the structure above. Start with style base, then subject, then scene details. Be visually specific (colors, lighting, composition) not narratively descriptive.",
+        ),
+      tags: z
+        .array(z.string())
+        .describe(
+          "Tags for searching. Include: character name if applicable, location, scene type (e.g., ['tahir', 'workshop', 'action'] or ['bazaar', 'location', 'exterior'])",
+        ),
+      reference_file: z
+        .string()
+        .describe(
+          "Markdown file to add image reference to (e.g., 'NPCs/Tahir.md' or 'Locations/Workshop.md')",
+        ),
+      reference_slugs: z
+        .array(z.string())
+        .optional()
+        .describe(
+          "USE SPARINGLY. Only for putting an existing character in a new scene. Pass ONE slug only (the character's portrait). Prompt must include explicit preservation language. Do not use for style - use style base in prompt instead.",
+        ),
+    }),
+    execute: async ({
+      slug,
+      prompt,
+      tags,
+      reference_file,
+      reference_slugs,
+    }) => {
       try {
-        const refContent = await fs.readFile(refFilePath, "utf-8");
-        const imageRef = `\n\n![${slug}](images/${filename})\n`;
-        await fs.writeFile(refFilePath, refContent + imageRef, "utf-8");
-      } catch {
-        await fs.mkdir(path.dirname(refFilePath), { recursive: true });
-        const title = path.basename(reference_file, ".md");
-        await fs.writeFile(
-          refFilePath,
-          `# ${title}\n\n![${slug}](images/${filename})\n`,
-          "utf-8",
-        );
-      }
+        const imageBuffer = await generateImageWithBfl(prompt, reference_slugs);
 
-      return {
-        success: true,
-        path: `images/${filename}`,
-        slug,
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-      };
-    }
-  },
-});
+        // Image binary still goes to filesystem (Phase 3 moves to object storage)
+        const gameFilesDir = getGameFilesDir();
+        const imagesDir = path.join(gameFilesDir, "images");
+        await fs.mkdir(imagesDir, { recursive: true });
+
+        const filename = `${slug}.jpeg`;
+        await fs.writeFile(path.join(imagesDir, filename), imageBuffer);
+
+        await createImage(gameId, {
+          slug,
+          file: filename,
+          prompt,
+          tags,
+          referencedIn: reference_file,
+        });
+
+        // Update the markdown reference file in the DB (atomic upsert)
+        const refPath = normalizeGameFilePath(reference_file);
+        const imageRef = `\n\n![${slug}](images/${filename})\n`;
+        const title = path.basename(refPath, ".md");
+        const initialContent = `# ${title}\n\n![${slug}](images/${filename})\n`;
+
+        await prisma.$executeRaw`
+          INSERT INTO "GameFile" ("id", "gameId", "path", "content", "createdAt", "updatedAt")
+          VALUES (gen_random_uuid()::text, ${gameId}, ${refPath}, ${initialContent}, NOW(), NOW())
+          ON CONFLICT ("gameId", "path")
+          DO UPDATE SET "content" = "GameFile"."content" || ${imageRef}, "updatedAt" = NOW()
+        `;
+
+        return {
+          success: true,
+          path: `images/${filename}`,
+          slug,
+        };
+      } catch (error) {
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : "Unknown error",
+        };
+      }
+    },
+  });
+}

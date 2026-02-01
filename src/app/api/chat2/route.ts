@@ -3,11 +3,11 @@ import {
   createUIMessageStreamResponse,
   type UIMessage,
 } from "ai";
-import { loadGameContext } from "@/lib/game-files";
+import { getCurrentGame, loadGameContext } from "@/lib/game-files";
 import { loadGameConfig } from "@/lib/game-config";
 import { ensureConversationExists } from "@/lib/conversations";
 import { requireUserId } from "@/lib/auth";
-import { narratorTools } from "../chat/tools";
+import { createNarratorTools } from "../chat/tools";
 import { runOrchestrator } from "@/agents/orchestrator";
 import { runWorldAdvance } from "@/agents/world-builder";
 import { runFactionTurn } from "@/agents/faction-turn";
@@ -16,42 +16,13 @@ import { runArchivist } from "@/agents/archivist";
 import { getSystemPrompt } from "@/agents/prompts";
 import type { PreStep, OrchestratorDecision } from "@/agents/types";
 import { streamToUI } from "@/lib/stream-to-ui";
+import { validateRequestBody } from "@/lib/validate-chat-request";
 
 // Allow streaming responses up to 60 seconds.
 export const maxDuration = 60;
 
 function isDev(): boolean {
   return process.env.NODE_ENV === "development";
-}
-
-type ChatRequestBody = {
-  messages: UIMessage[];
-  conversationId: string;
-};
-
-function validateRequestBody(
-  body: unknown,
-):
-  | { success: true; data: ChatRequestBody }
-  | { success: false; error: string } {
-  if (typeof body !== "object" || body === null) {
-    return { success: false, error: "Invalid request body" };
-  }
-
-  const { messages, conversationId } = body as Record<string, unknown>;
-
-  if (!conversationId || typeof conversationId !== "string") {
-    return { success: false, error: "Missing or invalid conversationId" };
-  }
-
-  if (!messages || !Array.isArray(messages)) {
-    return { success: false, error: "Missing or invalid messages" };
-  }
-
-  return {
-    success: true,
-    data: { messages: messages as UIMessage[], conversationId },
-  };
 }
 
 function buildContextMessage(context: string): UIMessage {
@@ -91,6 +62,7 @@ async function executePreStepsWithProgress(
   preSteps: PreStep[],
   context: string,
   conversationId: string,
+  gameId: string,
   writer: StreamWriter,
 ): Promise<string | undefined> {
   const results: string[] = [];
@@ -107,7 +79,12 @@ async function executePreStepsWithProgress(
           },
         });
 
-        const res = await runWorldAdvance(step, context, conversationId);
+        const res = await runWorldAdvance(
+          step,
+          context,
+          conversationId,
+          gameId,
+        );
 
         writer.write({
           type: "data-agent-progress",
@@ -129,7 +106,7 @@ async function executePreStepsWithProgress(
           },
         });
 
-        const res = await runFactionTurn(step, context, conversationId);
+        const res = await runFactionTurn(step, context, conversationId, gameId);
 
         writer.write({
           type: "data-agent-progress",
@@ -177,6 +154,8 @@ export async function POST(req: Request) {
   const { messages, conversationId } = validation.data;
 
   const userId = await requireUserId();
+  const game = await getCurrentGame(userId);
+  const gameId = game.id;
 
   const stream = createUIMessageStream({
     execute: async ({ writer }) => {
@@ -184,11 +163,11 @@ export async function POST(req: Request) {
         // Start a single step for the entire response
         writer.write({ type: "start-step" });
 
-        await ensureConversationExists(conversationId, userId);
+        await ensureConversationExists(conversationId, userId, gameId);
 
         const [config, context] = await Promise.all([
-          loadGameConfig(),
-          loadGameContext(),
+          loadGameConfig(gameId),
+          loadGameContext(gameId),
         ]);
 
         const gameSystem = getSystemPrompt(config);
@@ -224,11 +203,13 @@ export async function POST(req: Request) {
               decision.preSteps,
               context,
               conversationId,
+              gameId,
               writer,
             )
           : undefined;
 
         // 3. Narrator (no progress event - its output streams directly)
+        const narratorTools = createNarratorTools(gameId);
         const result = await runNarrator({
           gameSystem,
           messages: allMessages,
@@ -258,6 +239,7 @@ export async function POST(req: Request) {
               messages,
               narratorResponse,
               conversationId,
+              gameId,
             });
 
             writer.write({

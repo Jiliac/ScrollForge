@@ -3,13 +3,14 @@ import { generateText, stepCountIs } from "ai";
 import type { PreStep } from "./types";
 import { getWorldAdvancePrompt } from "./prompts";
 import { loadGameConfig } from "@/lib/game-config";
-import { worldAdvanceTools } from "@/app/api/chat/tools";
+import { createWorldAdvanceTools } from "@/app/api/chat/tools";
 import {
   startAgentLog,
   completeAgentLog,
   failAgentLog,
   refuseAgentLog,
 } from "@/lib/agent-logs";
+import { extractToolCalls } from "./extract-tool-calls";
 
 export type WorldAdvanceResult = {
   summary: string;
@@ -24,7 +25,8 @@ type WorldAdvanceStep = Extract<PreStep, { type: "world_advance" }>;
 export async function runWorldAdvance(
   step: WorldAdvanceStep,
   context: string,
-  conversationId?: string,
+  conversationId: string | undefined,
+  gameId: string,
 ): Promise<WorldAdvanceResult> {
   const logId = conversationId
     ? await startAgentLog(conversationId, "world_advance", {
@@ -33,8 +35,10 @@ export async function runWorldAdvance(
     : null;
 
   try {
-    const config = await loadGameConfig();
+    const config = await loadGameConfig(gameId);
     const systemPrompt = getWorldAdvancePrompt(config, step.description);
+
+    const tools = createWorldAdvanceTools(gameId);
 
     const { text, steps } = await generateText({
       model: defaultModel,
@@ -45,7 +49,7 @@ export async function runWorldAdvance(
           content: `# Game Context\n\n${context}\n\n---\n\nAdvance the world: ${step.description}`,
         },
       ],
-      tools: worldAdvanceTools,
+      tools,
       stopWhen: stepCountIs(5),
     });
 
@@ -56,19 +60,7 @@ export async function runWorldAdvance(
       return { summary: `(refused) ${reason}`, toolCalls: [] };
     }
 
-    // Extract all tool calls from all steps (with null-safe access)
-    // Note: AI SDK uses "input" for tool call arguments, not "args"
-    const toolCalls = (steps ?? []).flatMap((s) =>
-      (s.toolCalls ?? []).map((tc) => {
-        const tcAny = tc as Record<string, unknown>;
-        const rawArgs = tcAny.input ?? tcAny.args ?? {};
-        const args =
-          typeof rawArgs === "object" && rawArgs !== null
-            ? (rawArgs as Record<string, unknown>)
-            : {};
-        return { toolName: tc.toolName, args };
-      }),
-    );
+    const toolCalls = extractToolCalls(steps as Array<Record<string, unknown>>);
 
     const result = { summary: text, toolCalls };
     if (logId) await completeAgentLog(logId, result);
@@ -86,14 +78,4 @@ export async function runWorldAdvance(
       { cause: error },
     );
   }
-}
-
-// Keep stub for backwards compatibility during transition
-export async function runWorldAdvanceStub(
-  step: WorldAdvanceStep,
-): Promise<WorldAdvanceResult> {
-  return {
-    summary: `(stub) would advance world: ${step.description}`,
-    toolCalls: [],
-  };
 }

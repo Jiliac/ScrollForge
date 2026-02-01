@@ -9,16 +9,15 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/game-files", () => ({
-  getCurrentGameId: vi.fn().mockResolvedValue("game-1"),
-}));
-
 import { prisma } from "@/lib/prisma";
 import {
   createConversation,
   ensureConversationExists,
   loadConversation,
 } from "@/lib/conversations";
+
+const GAME_ID = "test-game-id";
+const USER_ID = "test-user-id";
 
 const mockPrisma = vi.mocked(prisma, true);
 
@@ -32,10 +31,10 @@ describe("createConversation", () => {
       id: "auto-id",
     } as never);
 
-    const result = await createConversation("user-1");
+    const result = await createConversation(USER_ID, GAME_ID);
     expect(result).toBe("auto-id");
     expect(mockPrisma.conversation.create).toHaveBeenCalledWith({
-      data: { gameId: "game-1", userId: "user-1" },
+      data: { gameId: GAME_ID, userId: USER_ID },
     });
   });
 
@@ -44,10 +43,10 @@ describe("createConversation", () => {
       id: "custom-id",
     } as never);
 
-    const result = await createConversation("user-1", "custom-id");
+    const result = await createConversation(USER_ID, GAME_ID, "custom-id");
     expect(result).toBe("custom-id");
     expect(mockPrisma.conversation.create).toHaveBeenCalledWith({
-      data: { id: "custom-id", gameId: "game-1", userId: "user-1" },
+      data: { id: "custom-id", gameId: GAME_ID, userId: USER_ID },
     });
   });
 });
@@ -58,9 +57,9 @@ describe("ensureConversationExists", () => {
       id: "conv-1",
     } as never);
 
-    await ensureConversationExists("conv-1", "user-1");
+    await ensureConversationExists("conv-1", USER_ID, GAME_ID);
     expect(mockPrisma.conversation.findFirst).toHaveBeenCalledWith({
-      where: { id: "conv-1", gameId: "game-1", userId: "user-1" },
+      where: { id: "conv-1", gameId: GAME_ID, userId: USER_ID },
     });
     expect(mockPrisma.conversation.create).not.toHaveBeenCalled();
   });
@@ -68,16 +67,16 @@ describe("ensureConversationExists", () => {
   it("creates new conversation when not found", async () => {
     mockPrisma.conversation.findFirst.mockResolvedValue(null);
 
-    await ensureConversationExists("conv-2", "user-1");
+    await ensureConversationExists("conv-2", USER_ID, GAME_ID);
     expect(mockPrisma.conversation.create).toHaveBeenCalledWith({
-      data: { id: "conv-2", gameId: "game-1", userId: "user-1" },
+      data: { id: "conv-2", gameId: GAME_ID, userId: USER_ID },
     });
   });
 
   it("filters by userId in the where clause", async () => {
     mockPrisma.conversation.findFirst.mockResolvedValue(null);
 
-    await ensureConversationExists("conv-1", "user-other");
+    await ensureConversationExists("conv-1", "user-other", GAME_ID);
     expect(mockPrisma.conversation.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ userId: "user-other" }),
@@ -100,7 +99,7 @@ describe("loadConversation", () => {
       ],
     } as never);
 
-    const result = await loadConversation("conv-1", "user-1");
+    const result = await loadConversation("conv-1", USER_ID);
     expect(result).toEqual({
       id: "conv-1",
       messages: [
@@ -116,17 +115,17 @@ describe("loadConversation", () => {
   it("returns null when not found", async () => {
     mockPrisma.conversation.findFirst.mockResolvedValue(null);
 
-    const result = await loadConversation("conv-x", "user-1");
+    const result = await loadConversation("conv-x", USER_ID);
     expect(result).toBeNull();
   });
 
   it("filters by userId in the where clause", async () => {
     mockPrisma.conversation.findFirst.mockResolvedValue(null);
 
-    await loadConversation("conv-1", "user-1");
+    await loadConversation("conv-1", USER_ID);
     expect(mockPrisma.conversation.findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ userId: "user-1" }),
+        where: expect.objectContaining({ userId: USER_ID }),
       }),
     );
   });

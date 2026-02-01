@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { runFactionTurn } from "@/agents/faction-turn";
 
+const GAME_ID = "test-game-id";
+
 vi.mock("ai", () => ({
   generateText: vi.fn(),
   stepCountIs: () => ({}),
@@ -25,7 +27,7 @@ vi.mock("@/agents/prompts", () => ({
 }));
 
 vi.mock("@/app/api/chat/tools", () => ({
-  factionTools: {},
+  createFactionTools: () => ({}),
 }));
 
 vi.mock("@/lib/agent-logs", () => ({
@@ -55,6 +57,7 @@ describe("runFactionTurn", () => {
       },
       "CTX",
       "conv1",
+      GAME_ID,
     );
 
     expect(res.summary).toContain("(refused)");
@@ -83,6 +86,7 @@ describe("runFactionTurn", () => {
       },
       "CTX",
       "conv1",
+      GAME_ID,
     );
 
     expect(res.toolCalls).toEqual([

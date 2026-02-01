@@ -7,12 +7,13 @@ import {
 } from "ai";
 import { getArchivistPrompt } from "./prompts";
 import { loadGameConfig } from "@/lib/game-config";
-import { archivistTools } from "@/app/api/chat/tools";
+import { createArchivistTools } from "@/app/api/chat/tools";
 import {
   startAgentLog,
   completeAgentLog,
   failAgentLog,
 } from "@/lib/agent-logs";
+import { extractToolCalls } from "./extract-tool-calls";
 
 export type ArchivistResult = {
   summary: string;
@@ -28,6 +29,7 @@ export async function runArchivist(opts: {
   messages: UIMessage[];
   narratorResponse: string;
   conversationId?: string;
+  gameId: string;
 }): Promise<ArchivistResult> {
   const logId = opts.conversationId
     ? await startAgentLog(opts.conversationId, "archivist", {
@@ -37,8 +39,10 @@ export async function runArchivist(opts: {
     : null;
 
   try {
-    const config = await loadGameConfig();
+    const config = await loadGameConfig(opts.gameId);
     const systemPrompt = getArchivistPrompt(config, opts.narratorResponse);
+
+    const tools = createArchivistTools(opts.gameId);
 
     const { text, steps } = await generateText({
       model: defaultModel,
@@ -51,22 +55,11 @@ export async function runArchivist(opts: {
         },
         ...opts.messages,
       ]),
-      tools: archivistTools,
+      tools,
       stopWhen: stepCountIs(10),
     });
 
-    // Extract all tool calls from all steps
-    const toolCalls = (steps ?? []).flatMap((s) =>
-      (s.toolCalls ?? []).map((tc) => {
-        const tcAny = tc as Record<string, unknown>;
-        const rawArgs = tcAny.input ?? tcAny.args ?? {};
-        const args =
-          typeof rawArgs === "object" && rawArgs !== null
-            ? (rawArgs as Record<string, unknown>)
-            : {};
-        return { toolName: tc.toolName, args };
-      }),
-    );
+    const toolCalls = extractToolCalls(steps as Array<Record<string, unknown>>);
 
     // Find session file if any was written/edited
     const sessionFile = toolCalls.find(
