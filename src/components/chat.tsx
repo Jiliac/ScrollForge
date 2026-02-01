@@ -79,7 +79,9 @@ export function ChatSection({
     [initialConversationId],
   );
 
-  // Stable transport — reads mode from ref at request time, not during render
+  // Stable transport — reads mode from ref at request time, not during render.
+  // Intentional: mode switching mid-conversation is allowed. Play and ask messages
+  // coexist in the same conversation so the user can seamlessly switch context.
   // eslint-disable-next-line react-hooks/refs -- false positive: ref is read inside prepareSendMessagesRequest callback, not during render
   const [transport] = useState(() =>
     createModeAwareTransport(conversationId, () =>
@@ -107,14 +109,20 @@ export function ChatSection({
       messages.length > lastSavedCountRef.current
     ) {
       lastSavedCountRef.current = messages.length;
-      fetch(`/api/conversations/${conversationId}/messages`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ messages }),
-      }).then(() => {
-        // Only set this on home page - signals save is done for redirect
-        if (pathname === "/") setHasSavedInitial(true);
-      });
+      const saveMessages = async () => {
+        try {
+          await fetch(`/api/conversations/${conversationId}/messages`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ messages }),
+          });
+          // Only set this on home page - signals save is done for redirect
+          if (pathname === "/") setHasSavedInitial(true);
+        } catch (err) {
+          console.error("Failed to save messages:", err);
+        }
+      };
+      saveMessages();
     }
   }, [status, messages, conversationId, pathname]);
 
@@ -180,7 +188,8 @@ function ModeSelector({
       items={CHAT_MODES}
       value={mode}
       onValueChange={(v) => {
-        if (v) onModeChange(v as ChatMode);
+        if (v && CHAT_MODES.includes(v as ChatMode))
+          onModeChange(v as ChatMode);
       }}
     >
       <ComboboxInput

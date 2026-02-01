@@ -13,6 +13,9 @@ import { defaultModel } from "@/lib/ai-model";
 import { requireUserId } from "@/lib/auth";
 import { validateRequestBody } from "@/lib/validate-chat-request";
 
+// Allow streaming responses up to 30 seconds.
+export const maxDuration = 30;
+
 export async function POST(req: Request) {
   let body: unknown;
   try {

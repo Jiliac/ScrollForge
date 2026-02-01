@@ -55,8 +55,9 @@ function summarizeDecision(decision: OrchestratorDecision): string {
   return parts.length > 0 ? parts.join(", ") : "Direct to narrator";
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type StreamWriter = any;
+type StreamWriter = Parameters<
+  Parameters<typeof createUIMessageStream>[0]["execute"]
+>[0]["writer"];
 
 async function executePreStepsWithProgress(
   preSteps: PreStep[],
