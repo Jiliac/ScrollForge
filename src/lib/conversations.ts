@@ -69,11 +69,17 @@ export async function loadConversation(
 
   if (!conversation) return null;
 
-  const messages: UIMessage[] = conversation.messages.map((msg) => ({
-    id: msg.id,
-    role: msg.role as "user" | "assistant",
-    parts: JSON.parse(msg.parts),
-  }));
+  const messages: UIMessage[] = conversation.messages.flatMap((msg) => {
+    const role = msg.role;
+    if (role !== "user" && role !== "assistant") return [];
+    try {
+      return [{ id: msg.id, role, parts: JSON.parse(msg.parts) }];
+    } catch {
+      return [
+        { id: msg.id, role, parts: [{ type: "text" as const, text: "" }] },
+      ];
+    }
+  });
 
   return { id: conversation.id, messages };
 }

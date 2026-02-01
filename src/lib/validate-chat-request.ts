@@ -1,20 +1,22 @@
 import type { UIMessage } from "ai";
 import { z } from "zod";
 
-const messageSchema = z.object({
-  id: z.string(),
-  role: z.enum(["system", "user", "assistant"]),
-  parts: z.array(z.record(z.unknown())),
-});
+/** Validates essential UIMessage fields; passthrough allows extra SDK fields. */
+const messageSchema = z
+  .object({
+    id: z.string(),
+    role: z.enum(["system", "user", "assistant"]),
+    parts: z.array(z.record(z.unknown())),
+  })
+  .passthrough();
 
 const requestBodySchema = z.object({
   conversationId: z.string().min(1),
   messages: z.array(messageSchema).min(1),
 });
 
-export type ChatRequestBody = {
+export type ChatRequestBody = z.infer<typeof requestBodySchema> & {
   messages: UIMessage[];
-  conversationId: string;
 };
 
 type ValidationResult =

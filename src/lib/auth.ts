@@ -16,7 +16,12 @@ export async function requireUserId(): Promise<string> {
   return user.id;
 }
 
-export async function getOrCreateUser() {
+export async function getOrCreateUser(): Promise<{
+  id: string;
+  email: string;
+  name: string | null;
+  createdAt: Date;
+}> {
   const supabase = await createClient();
   const {
     data: { user },

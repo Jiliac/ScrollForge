@@ -31,7 +31,11 @@ export async function getCurrentGameId(userId: string): Promise<string> {
   return game.id;
 }
 
-/** Load game context from GameFile rows in the database. */
+/**
+ * Load game context from GameFile rows in the database.
+ * TODO: this loads ALL files into memory. Fine for current game sizes,
+ * but will need pagination or selective loading for large games.
+ */
 export async function loadGameContext(gameId: string): Promise<string> {
   const SKIP_FILES = new Set(["config.yaml", "style-guide.md", "system.md"]);
 
