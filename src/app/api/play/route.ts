@@ -55,8 +55,9 @@ function summarizeDecision(decision: OrchestratorDecision): string {
   return parts.length > 0 ? parts.join(", ") : "Direct to narrator";
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type StreamWriter = any;
+type StreamWriter = Parameters<
+  Parameters<typeof createUIMessageStream>[0]["execute"]
+>[0]["writer"];
 
 async function executePreStepsWithProgress(
   preSteps: PreStep[],
@@ -275,7 +276,7 @@ export async function POST(req: Request) {
           },
         });
       } catch (error) {
-        console.error("Error in /api/chat2 stream:", error);
+        console.error("Error in /api/play stream:", error);
         writer.write({
           type: "error",
           errorText: error instanceof Error ? error.message : "Unknown error",
