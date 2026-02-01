@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { runWorldAdvance } from "@/agents/world-builder";
 
+const GAME_ID = "test-game-id";
+
 vi.mock("ai", () => ({
   generateText: vi.fn(),
   stepCountIs: () => ({}),
@@ -25,7 +27,7 @@ vi.mock("@/agents/prompts", () => ({
 }));
 
 vi.mock("@/app/api/chat/tools", () => ({
-  worldAdvanceTools: {},
+  createWorldAdvanceTools: () => ({}),
 }));
 
 vi.mock("@/lib/agent-logs", () => ({
@@ -51,6 +53,7 @@ describe("runWorldAdvance", () => {
       { type: "world_advance", description: "Advance 1 year" },
       "CTX",
       "conv1",
+      GAME_ID,
     );
 
     expect(res.summary).toContain("(refused)");
@@ -82,6 +85,7 @@ describe("runWorldAdvance", () => {
       { type: "world_advance", description: "Do thing" },
       "CTX",
       "conv1",
+      GAME_ID,
     );
 
     expect(res.toolCalls).toEqual([

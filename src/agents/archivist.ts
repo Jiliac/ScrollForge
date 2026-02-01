@@ -7,7 +7,7 @@ import {
 } from "ai";
 import { getArchivistPrompt } from "./prompts";
 import { loadGameConfig } from "@/lib/game-config";
-import { archivistTools } from "@/app/api/chat/tools";
+import { createArchivistTools } from "@/app/api/chat/tools";
 import {
   startAgentLog,
   completeAgentLog,
@@ -28,6 +28,7 @@ export async function runArchivist(opts: {
   messages: UIMessage[];
   narratorResponse: string;
   conversationId?: string;
+  gameId: string;
 }): Promise<ArchivistResult> {
   const logId = opts.conversationId
     ? await startAgentLog(opts.conversationId, "archivist", {
@@ -37,8 +38,10 @@ export async function runArchivist(opts: {
     : null;
 
   try {
-    const config = await loadGameConfig();
+    const config = await loadGameConfig(opts.gameId);
     const systemPrompt = getArchivistPrompt(config, opts.narratorResponse);
+
+    const tools = createArchivistTools(opts.gameId);
 
     const { text, steps } = await generateText({
       model: defaultModel,
@@ -51,7 +54,7 @@ export async function runArchivist(opts: {
         },
         ...opts.messages,
       ]),
-      tools: archivistTools,
+      tools,
       stopWhen: stepCountIs(10),
     });
 

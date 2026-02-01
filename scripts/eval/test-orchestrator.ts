@@ -9,10 +9,12 @@
 
 import "dotenv/config";
 import { runOrchestrator } from "@/agents/orchestrator";
-import { loadGameContext } from "@/lib/game-files";
+import { getCurrentGameId, loadGameContext } from "@/lib/game-files";
 import { loadGameConfig } from "@/lib/game-config";
 import { getSystemPrompt } from "@/agents/prompts";
 import type { UIMessage } from "ai";
+
+const TEST_USER_ID = "4945e9a2-202b-477f-9b9e-e3b2d56b951f";
 
 async function main() {
   const userInput = process.argv[2];
@@ -27,10 +29,11 @@ async function main() {
     process.exit(1);
   }
 
+  const gameId = await getCurrentGameId(TEST_USER_ID);
   console.log("Loading game config and context...");
   const [config, context] = await Promise.all([
-    loadGameConfig(),
-    loadGameContext(),
+    loadGameConfig(gameId),
+    loadGameContext(gameId),
   ]);
   const gameSystem = getSystemPrompt(config);
   console.log(`Game system loaded (${gameSystem.length} chars)`);

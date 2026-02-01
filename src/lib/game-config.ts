@@ -1,8 +1,5 @@
-import { promises as fs } from "fs";
-import path from "path";
-import { parse as parseYaml } from "yaml";
 import { z } from "zod";
-import { getGameFilesDir } from "./game-files";
+import { prisma } from "./prisma";
 
 const GameConfigSchema = z.object({
   setting: z.object({ name: z.string(), era: z.string() }),
@@ -24,17 +21,20 @@ const GameConfigSchema = z.object({
 
 export type GameConfig = z.infer<typeof GameConfigSchema>;
 
-export async function loadGameConfig(): Promise<GameConfig> {
-  const gameFilesDir = getGameFilesDir();
-  const configPath = path.join(gameFilesDir, "config.yaml");
-
+export async function loadGameConfig(gameId: string): Promise<GameConfig> {
   try {
-    const content = await fs.readFile(configPath, "utf-8");
-    const yamlContent = parseYaml(content);
-    return GameConfigSchema.parse(yamlContent);
+    const game = await prisma.game.findUnique({
+      where: { id: gameId },
+      select: { config: true },
+    });
+
+    if (!game?.config) {
+      return getDefaultConfig();
+    }
+
+    return GameConfigSchema.parse(game.config);
   } catch (error) {
     console.error("Error loading or parsing game config:", error);
-    // Return a default config if file doesn't exist or is invalid
     return getDefaultConfig();
   }
 }

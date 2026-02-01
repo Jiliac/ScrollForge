@@ -40,10 +40,12 @@ async function main() {
     let skipped = 0;
 
     // Get or create game for current GAME_FILES_DIR
+    const userId =
+      process.env.SEED_USER_ID || "4945e9a2-202b-477f-9b9e-e3b2d56b951f";
     const game = await prisma.game.upsert({
       where: { filesDir: GAME_FILES_DIR },
       update: {},
-      create: { filesDir: GAME_FILES_DIR },
+      create: { filesDir: GAME_FILES_DIR, userId },
     });
 
     for (const image of index.images) {

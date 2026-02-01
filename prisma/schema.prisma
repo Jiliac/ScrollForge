@@ -32,16 +32,36 @@ model User {
   name          String?
   createdAt     DateTime       @default(now())
 
+  games         Game[]
   conversations Conversation[]
 }
 
 model Game {
-  id            String         @id @default(cuid())
-  filesDir      String         @unique
-  createdAt     DateTime       @default(now())
+  id        String   @id @default(cuid())
+  filesDir  String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  config    Json?
+  createdAt DateTime @default(now())
 
+  files         GameFile[]
   images        Image[]
   conversations Conversation[]
+
+  @@index([userId])
+}
+
+model GameFile {
+  id        String   @id @default(cuid())
+  gameId    String
+  game      Game     @relation(fields: [gameId], references: [id], onDelete: Cascade)
+  path      String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([gameId, path])
+  @@index([gameId])
 }
 
 model Image {

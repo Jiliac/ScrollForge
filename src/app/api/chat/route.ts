@@ -4,9 +4,9 @@ import {
   stepCountIs,
   type UIMessage,
 } from "ai";
-import { loadGameContext } from "@/lib/game-files";
+import { getCurrentGame, loadGameContext } from "@/lib/game-files";
 import { ensureConversationExists } from "@/lib/conversations";
-import { tools } from "./tools";
+import { createTools } from "./tools";
 import { loadGameConfig } from "@/lib/game-config";
 import { getSystemPrompt } from "@/agents/prompts";
 import { defaultModel } from "@/lib/ai-model";
@@ -19,14 +19,15 @@ export async function POST(req: Request) {
   }: { messages: UIMessage[]; conversationId: string } = await req.json();
 
   const userId = await requireUserId();
+  const game = await getCurrentGame(userId);
+  const gameId = game.id;
 
-  // Ensure conversation exists (client generates ID, server creates record if needed)
-  await ensureConversationExists(conversationId, userId);
+  await ensureConversationExists(conversationId, userId, gameId);
 
   console.log("Loading game config and context...");
   const [config, context] = await Promise.all([
-    loadGameConfig(),
-    loadGameContext(),
+    loadGameConfig(gameId),
+    loadGameContext(gameId),
   ]);
   const system = getSystemPrompt(config);
 
@@ -40,14 +41,14 @@ export async function POST(req: Request) {
 
   const allMessages = contextMessage ? [contextMessage, ...messages] : messages;
 
+  const tools = createTools(gameId);
+
   const result = streamText({
     model: defaultModel,
     system: system || undefined,
     messages: await convertToModelMessages(allMessages),
     tools,
     stopWhen: stepCountIs(20),
-    // Note: Messages are saved by the client after stream completes
-    // to preserve full UIMessage structure including tool calls
   });
 
   return result.toUIMessageStreamResponse({

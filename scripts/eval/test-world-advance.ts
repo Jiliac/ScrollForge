@@ -12,7 +12,9 @@
 
 import "dotenv/config";
 import { runWorldAdvance } from "@/agents/world-builder";
-import { loadGameContext } from "@/lib/game-files";
+import { getCurrentGameId, loadGameContext } from "@/lib/game-files";
+
+const TEST_USER_ID = "4945e9a2-202b-477f-9b9e-e3b2d56b951f";
 
 type WorldAdvanceStep = { type: "world_advance"; description: string };
 
@@ -59,8 +61,9 @@ async function main() {
     steps = [{ type: "world_advance", description }];
   }
 
+  const gameId = await getCurrentGameId(TEST_USER_ID);
   console.log("Loading game context...");
-  const context = await loadGameContext();
+  const context = await loadGameContext(gameId);
   console.log(`Context loaded (${context.length} chars)\n`);
 
   for (const step of steps) {
@@ -69,7 +72,7 @@ async function main() {
     console.log("=".repeat(60));
 
     const start = Date.now();
-    const result = await runWorldAdvance(step, context);
+    const result = await runWorldAdvance(step, context, undefined, gameId);
     const elapsed = Date.now() - start;
 
     if (result.toolCalls.length > 0) {

@@ -1,15 +1,15 @@
-import { promises as fs } from "fs";
 import path from "path";
 import { prisma } from "./prisma";
 
+/** Still needed for image serving (Phase 3) and image binary writes. */
 export function getGameFilesDir(): string {
   return (
     process.env.GAME_FILES_DIR || path.join(process.cwd(), "game_files_local")
   );
 }
 
-// Get or create the Game record for current GAME_FILES_DIR
-export async function getCurrentGame(): Promise<{
+/** Get or create the Game record for the current GAME_FILES_DIR + userId. */
+export async function getCurrentGame(userId: string): Promise<{
   id: string;
   filesDir: string;
 }> {
@@ -18,56 +18,33 @@ export async function getCurrentGame(): Promise<{
   const game = await prisma.game.upsert({
     where: { filesDir },
     update: {},
-    create: { filesDir },
+    create: { filesDir, userId },
   });
 
   return game;
 }
 
-// Convenience: just get the ID
-export async function getCurrentGameId(): Promise<string> {
-  const game = await getCurrentGame();
+/** Convenience: just get the ID. */
+export async function getCurrentGameId(userId: string): Promise<string> {
+  const game = await getCurrentGame(userId);
   return game.id;
 }
 
-export async function readMdFilesRecursively(
-  dir: string,
-  baseDir: string,
-): Promise<{ relativePath: string; content: string }[]> {
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  const files: { relativePath: string; content: string }[] = [];
-
-  const IGNORED_DIRS = new Set(["videos", "images"]);
-
-  for (const entry of entries) {
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (IGNORED_DIRS.has(entry.name)) continue;
-      const subFiles = await readMdFilesRecursively(fullPath, baseDir);
-      files.push(...subFiles);
-    } else if (entry.isFile() && entry.name.endsWith(".md")) {
-      const relativePath = path.relative(baseDir, fullPath);
-      const content = await fs.readFile(fullPath, "utf-8");
-      files.push({ relativePath, content });
-    }
-  }
-
-  return files;
-}
-
-export async function loadGameContext(): Promise<string> {
+/** Load game context from GameFile rows in the database. */
+export async function loadGameContext(gameId: string): Promise<string> {
   try {
-    const gameFilesDir = getGameFilesDir();
-    const files = await readMdFilesRecursively(gameFilesDir, gameFilesDir);
+    const SKIP_FILES = new Set(["config.yaml", "style-guide.md", "system.md"]);
+
+    const files = await prisma.gameFile.findMany({
+      where: { gameId },
+      orderBy: { path: "asc" },
+    });
 
     const contextParts: string[] = [];
 
-    // Files that are prompts/config, not game context
-    const SKIP_FILES = new Set(["config.yaml", "style-guide.md", "system.md"]);
-
     for (const file of files) {
-      if (SKIP_FILES.has(file.relativePath)) continue;
-      contextParts.push(`## ${file.relativePath}\n\n${file.content}`);
+      if (SKIP_FILES.has(file.path)) continue;
+      contextParts.push(`## ${file.path}\n\n${file.content}`);
     }
 
     return contextParts.join("\n\n---\n\n");

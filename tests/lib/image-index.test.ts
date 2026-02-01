@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { searchImages } from "@/lib/image-index";
 
+const GAME_ID = "test-game-id";
+
 vi.mock("@/lib/prisma", () => ({
   prisma: {
     image: {
@@ -9,16 +11,12 @@ vi.mock("@/lib/prisma", () => ({
   },
 }));
 
-vi.mock("@/lib/game-files", () => ({
-  getCurrentGameId: vi.fn().mockResolvedValue("test-game-id"),
-}));
-
 import { prisma } from "@/lib/prisma";
 
 const mockImages = [
   {
     id: "1",
-    gameId: "test-game-id",
+    gameId: GAME_ID,
     slug: "tahir-portrait",
     file: "tahir-portrait.jpeg",
     prompt: "A skilled craftsman in his workshop",
@@ -28,7 +26,7 @@ const mockImages = [
   },
   {
     id: "2",
-    gameId: "test-game-id",
+    gameId: GAME_ID,
     slug: "bazaar-morning",
     file: "bazaar-morning.jpeg",
     prompt: "A bustling market at sunrise",
@@ -44,36 +42,36 @@ describe("searchImages", () => {
   });
 
   it("finds image by slug", async () => {
-    const result = await searchImages("tahir");
+    const result = await searchImages(GAME_ID, "tahir");
     expect(result).not.toBeNull();
     expect(result?.slug).toBe("tahir-portrait");
   });
 
   it("finds image by tag", async () => {
-    const result = await searchImages("location");
+    const result = await searchImages(GAME_ID, "location");
     expect(result).not.toBeNull();
     expect(result?.slug).toBe("bazaar-morning");
   });
 
   it("finds image by prompt word", async () => {
-    const result = await searchImages("craftsman");
+    const result = await searchImages(GAME_ID, "craftsman");
     expect(result).not.toBeNull();
     expect(result?.slug).toBe("tahir-portrait");
   });
 
   it("matches all words in query", async () => {
-    const result = await searchImages("tahir portrait");
+    const result = await searchImages(GAME_ID, "tahir portrait");
     expect(result).not.toBeNull();
     expect(result?.slug).toBe("tahir-portrait");
   });
 
   it("returns null when no match", async () => {
-    const result = await searchImages("nonexistent");
+    const result = await searchImages(GAME_ID, "nonexistent");
     expect(result).toBeNull();
   });
 
   it("is case insensitive", async () => {
-    const result = await searchImages("TAHIR");
+    const result = await searchImages(GAME_ID, "TAHIR");
     expect(result).not.toBeNull();
     expect(result?.slug).toBe("tahir-portrait");
   });

@@ -1,14 +1,19 @@
-import { getGameFilesDir, readMdFilesRecursively } from "@/lib/game-files";
+import { getCurrentGame } from "@/lib/game-files";
 import { requireUserId } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
-  await requireUserId();
+  const userId = await requireUserId();
+
   try {
-    const gameFilesDir = getGameFilesDir();
-    const files = await readMdFilesRecursively(gameFilesDir, gameFilesDir);
+    const game = await getCurrentGame(userId);
+    const files = await prisma.gameFile.findMany({
+      where: { gameId: game.id },
+      orderBy: { path: "asc" },
+    });
 
     return Response.json({
-      files: files.map((f) => ({ name: f.relativePath, content: f.content })),
+      files: files.map((f) => ({ name: f.path, content: f.content })),
     });
   } catch (error) {
     console.error("Error reading game files:", error);

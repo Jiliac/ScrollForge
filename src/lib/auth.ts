@@ -58,3 +58,18 @@ export async function requireConversationAccess(
 
   return userId;
 }
+
+export async function requireGameAccess(gameId: string): Promise<string> {
+  const userId = await requireUserId();
+
+  const game = await prisma.game.findFirst({
+    where: { id: gameId, userId },
+    select: { id: true },
+  });
+
+  if (!game) {
+    notFound();
+  }
+
+  return userId;
+}

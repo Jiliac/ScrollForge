@@ -3,7 +3,7 @@ import { generateText, stepCountIs } from "ai";
 import type { PreStep } from "./types";
 import { getFactionTurnPrompt } from "./prompts";
 import { loadGameConfig } from "@/lib/game-config";
-import { factionTools } from "@/app/api/chat/tools";
+import { createFactionTools } from "@/app/api/chat/tools";
 import {
   startAgentLog,
   completeAgentLog,
@@ -24,7 +24,8 @@ type FactionTurnStep = Extract<PreStep, { type: "faction_turn" }>;
 export async function runFactionTurn(
   step: FactionTurnStep,
   context: string,
-  conversationId?: string,
+  conversationId: string | undefined,
+  gameId: string,
 ): Promise<FactionTurnResult> {
   const logId = conversationId
     ? await startAgentLog(conversationId, "faction_turn", {
@@ -34,12 +35,14 @@ export async function runFactionTurn(
     : null;
 
   try {
-    const config = await loadGameConfig();
+    const config = await loadGameConfig(gameId);
     const systemPrompt = getFactionTurnPrompt(
       config,
       step.faction,
       step.situation,
     );
+
+    const tools = createFactionTools(gameId);
 
     const { text, steps } = await generateText({
       model: defaultModel,
@@ -50,7 +53,7 @@ export async function runFactionTurn(
           content: `# Game Context\n\n${context}\n\n---\n\nYou are ${step.faction}. What do you do?`,
         },
       ],
-      tools: factionTools,
+      tools,
       stopWhen: stepCountIs(5),
     });
 
@@ -62,7 +65,6 @@ export async function runFactionTurn(
     }
 
     // Extract all tool calls from all steps (with null-safe access)
-    // Note: AI SDK uses "input" for tool call arguments, not "args"
     const toolCalls = (steps ?? []).flatMap((s) =>
       (s.toolCalls ?? []).map((tc) => {
         const tcAny = tc as Record<string, unknown>;
@@ -91,14 +93,4 @@ export async function runFactionTurn(
       { cause: error },
     );
   }
-}
-
-// Keep stub for backwards compatibility during transition
-export async function runFactionTurnStub(
-  step: FactionTurnStep,
-): Promise<FactionTurnResult> {
-  return {
-    summary: `(stub) ${step.faction} would respond to: ${step.situation}`,
-    toolCalls: [],
-  };
 }
