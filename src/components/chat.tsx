@@ -39,7 +39,7 @@ function createModeAwareTransport(
   getModeApi: () => string,
 ) {
   return new DefaultChatTransport({
-    api: "/api/play",
+    api: "/api/play", // Placeholder; overridden by prepareSendMessagesRequest
     body: () => ({ conversationId }),
     prepareSendMessagesRequest: ({ messages, body }) => ({
       body: { messages, ...body, conversationId },
@@ -82,7 +82,7 @@ export function ChatSection({
   // Stable transport — reads mode from ref at request time, not during render.
   // Intentional: mode switching mid-conversation is allowed. Play and ask messages
   // coexist in the same conversation so the user can seamlessly switch context.
-  // eslint-disable-next-line react-hooks/refs -- false positive: ref is read inside prepareSendMessagesRequest callback, not during render
+  // eslint-disable-next-line react-hooks/refs -- modeRef is captured in a closure but only read inside prepareSendMessagesRequest, not during render
   const [transport] = useState(() =>
     createModeAwareTransport(conversationId, () =>
       modeRef.current === "play" ? "/api/play" : "/api/ask",
