@@ -47,3 +47,10 @@ export function createNarratorTools(gameId: string) {
     twist_of_fate: twistOfFateTool,
   };
 }
+
+export function createAskTools(gameId: string) {
+  assertGameId(gameId);
+  return {
+    search_image: makeSearchImage(gameId),
+  };
+}

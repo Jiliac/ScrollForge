@@ -275,7 +275,7 @@ export async function POST(req: Request) {
           },
         });
       } catch (error) {
-        console.error("Error in /api/chat2 stream:", error);
+        console.error("Error in /api/play stream:", error);
         writer.write({
           type: "error",
           errorText: error instanceof Error ? error.message : "Unknown error",
