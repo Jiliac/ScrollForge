@@ -1,12 +1,4 @@
-import path from "path";
 import { prisma } from "./prisma";
-
-/** Still needed for image serving (Phase 3) and image binary writes. */
-export function getGameFilesDir(): string {
-  return (
-    process.env.GAME_FILES_DIR || path.join(process.cwd(), "game_files_local")
-  );
-}
 
 /**
  * Get the Game record for the given user. Returns the most recently created game.

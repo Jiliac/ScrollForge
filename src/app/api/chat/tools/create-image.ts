@@ -1,16 +1,12 @@
-import { promises as fs } from "fs";
-import path from "path";
 import { tool } from "ai";
 import { z } from "zod";
-import { getGameFilesDir } from "@/lib/game-files";
 import { createImage } from "@/lib/image-index";
 import { generateImageWithBfl } from "@/lib/bfl-api";
-import { prisma } from "@/lib/prisma";
-import { normalizeGameFilePath } from "@/lib/normalize-path";
+import { uploadImage, getImageUrl } from "@/lib/storage";
 
 export function makeCreateImage(gameId: string) {
   return tool({
-    description: `Generate a new image using FLUX AI. Saves to images folder, updates index, and adds reference to a markdown file.
+    description: `Generate a new image using FLUX AI. Saves to cloud storage and updates the image index.
 
 ## FLUX Prompt Structure (CRITICAL)
 FLUX weighs earlier information more heavily. Structure prompts as:
@@ -57,7 +53,7 @@ EXISTING CHARACTER IN NEW SCENE (with ref):
       reference_file: z
         .string()
         .describe(
-          "Markdown file to add image reference to (e.g., 'NPCs/Tahir.md' or 'Locations/Workshop.md')",
+          "Markdown file this image is associated with (e.g., 'NPCs/Tahir.md' or 'Locations/Workshop.md')",
         ),
       reference_slugs: z
         .array(z.string())
@@ -74,40 +70,25 @@ EXISTING CHARACTER IN NEW SCENE (with ref):
       reference_slugs,
     }) => {
       try {
-        const imageBuffer = await generateImageWithBfl(prompt, reference_slugs);
+        const imageBuffer = await generateImageWithBfl(
+          gameId,
+          prompt,
+          reference_slugs,
+        );
 
-        // Image binary still goes to filesystem (Phase 3 moves to object storage)
-        const gameFilesDir = getGameFilesDir();
-        const imagesDir = path.join(gameFilesDir, "images");
-        await fs.mkdir(imagesDir, { recursive: true });
-
-        const filename = `${slug}.jpeg`;
-        await fs.writeFile(path.join(imagesDir, filename), imageBuffer);
+        const storagePath = await uploadImage(gameId, slug, imageBuffer);
 
         await createImage(gameId, {
           slug,
-          file: filename,
+          file: storagePath,
           prompt,
           tags,
           referencedIn: reference_file,
         });
 
-        // Update the markdown reference file in the DB (atomic upsert)
-        const refPath = normalizeGameFilePath(reference_file);
-        const imageRef = `\n\n![${slug}](images/${filename})\n`;
-        const title = path.basename(refPath, ".md");
-        const initialContent = `# ${title}\n\n![${slug}](images/${filename})\n`;
-
-        await prisma.$executeRaw`
-          INSERT INTO "GameFile" ("id", "gameId", "path", "content", "createdAt", "updatedAt")
-          VALUES (gen_random_uuid()::text, ${gameId}, ${refPath}, ${initialContent}, NOW(), NOW())
-          ON CONFLICT ("gameId", "path")
-          DO UPDATE SET "content" = "GameFile"."content" || ${imageRef}, "updatedAt" = NOW()
-        `;
-
         return {
           success: true,
-          path: `images/${filename}`,
+          url: getImageUrl(storagePath),
           slug,
         };
       } catch (error) {

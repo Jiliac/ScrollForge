@@ -1,6 +1,5 @@
-import { promises as fs } from "fs";
-import path from "path";
-import { getGameFilesDir } from "./game-files";
+import { getImageUrlBySlug } from "./image-index";
+import { getImageUrl } from "./storage";
 
 const BFL_API_KEY = process.env.BFL_API_KEY;
 
@@ -24,28 +23,30 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function loadImageAsBase64(slug: string): Promise<string> {
-  const imagesDir = path.join(getGameFilesDir(), "images");
-  for (const ext of [".jpeg", ".jpg", ".png", ".webp"]) {
-    const filepath = path.join(imagesDir, `${slug}${ext}`);
-    try {
-      const buffer = await fs.readFile(filepath);
-      const base64 = buffer.toString("base64");
-      const mimeType =
-        ext === ".png"
-          ? "image/png"
-          : ext === ".webp"
-            ? "image/webp"
-            : "image/jpeg";
-      return `data:${mimeType};base64,${base64}`;
-    } catch {
-      continue;
-    }
+export async function loadImageAsBase64(
+  gameId: string,
+  slug: string,
+): Promise<string> {
+  // Look up the stored URL, or construct it from the default storage path
+  const url =
+    (await getImageUrlBySlug(gameId, slug)) ??
+    getImageUrl(`games/${gameId}/images/${slug}.jpeg`);
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch image for slug: ${slug} (${response.status})`,
+    );
   }
-  throw new Error(`Image not found for slug: ${slug}`);
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const base64 = buffer.toString("base64");
+  const contentType = response.headers.get("content-type") ?? "image/jpeg";
+  return `data:${contentType};base64,${base64}`;
 }
 
 export async function generateImageWithBfl(
+  gameId: string,
   prompt: string,
   refSlugs?: string[],
 ): Promise<Buffer> {
@@ -69,7 +70,7 @@ export async function generateImageWithBfl(
       "input_image_4",
     ];
     for (let i = 0; i < Math.min(refSlugs.length, 4); i++) {
-      body[refKeys[i]] = await loadImageAsBase64(refSlugs[i]);
+      body[refKeys[i]] = await loadImageAsBase64(gameId, refSlugs[i]);
     }
   }
 

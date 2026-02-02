@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import type { Image } from "@/generated/prisma/client";
+import { getImageUrl as getStorageUrl } from "./storage";
 
 export interface ImageEntry {
   slug: string;
@@ -60,6 +61,22 @@ export async function getAllImages(gameId: string): Promise<ImageEntry[]> {
     orderBy: { createdAt: "desc" },
   });
   return images.map(dbToEntry);
+}
+
+/**
+ * Look up an image by slug and return its full public URL.
+ * Returns null if the image doesn't exist.
+ */
+export async function getImageUrlBySlug(
+  gameId: string,
+  slug: string,
+): Promise<string | null> {
+  const image = await prisma.image.findFirst({
+    where: { gameId, slug },
+    select: { file: true },
+  });
+  if (!image) return null;
+  return getStorageUrl(image.file);
 }
 
 export async function searchImages(

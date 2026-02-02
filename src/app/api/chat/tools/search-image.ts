@@ -1,11 +1,12 @@
 import { tool } from "ai";
 import { z } from "zod";
 import { searchImages } from "@/lib/image-index";
+import { getImageUrl } from "@/lib/storage";
 
 export function makeSearchImage(gameId: string) {
   return tool({
     description:
-      "Search for an existing image by slug, tags, or prompt. Returns the image path if found.",
+      "Search for an existing image by slug, tags, or prompt. Returns the image URL if found.",
     inputSchema: z.object({
       query: z
         .string()
@@ -20,7 +21,7 @@ export function makeSearchImage(gameId: string) {
 
       return {
         success: true,
-        path: `images/${result.file}`,
+        url: getImageUrl(result.file),
         slug: result.slug,
         prompt: result.prompt,
         tags: result.tags,
