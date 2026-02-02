@@ -1,10 +1,26 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  afterAll,
+} from "vitest";
 
-const mockGetImageUrlBySlug = vi.fn();
+// BFL_API_KEY is captured at module load time via top-level const.
+// vi.hoisted runs before any imports, so we can set it here.
+const { mockGetImageUrlBySlug, originalBflKey } = vi.hoisted(() => {
+  const originalBflKey = process.env.BFL_API_KEY;
+  process.env.BFL_API_KEY = "test-bfl-key";
+  return { mockGetImageUrlBySlug: vi.fn(), originalBflKey };
+});
 
 vi.mock("@/lib/image-index", () => ({
   getImageUrlBySlug: (...args: unknown[]) => mockGetImageUrlBySlug(...args),
 }));
+
+import { loadImageAsBase64, generateImageWithBfl } from "@/lib/bfl-api";
 
 const originalFetch = globalThis.fetch;
 const mockFetch = vi.fn();
@@ -20,7 +36,13 @@ afterEach(() => {
   globalThis.fetch = originalFetch;
 });
 
-import { loadImageAsBase64, generateImageWithBfl } from "@/lib/bfl-api";
+afterAll(() => {
+  if (originalBflKey === undefined) {
+    delete process.env.BFL_API_KEY;
+  } else {
+    process.env.BFL_API_KEY = originalBflKey;
+  }
+});
 
 describe("loadImageAsBase64", () => {
   it("fetches image and returns data URI", async () => {
