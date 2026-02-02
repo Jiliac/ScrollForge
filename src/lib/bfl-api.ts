@@ -68,9 +68,13 @@ export async function generateImageWithBfl(
       "input_image_3",
       "input_image_4",
     ];
-    for (let i = 0; i < Math.min(refSlugs.length, 4); i++) {
-      body[refKeys[i]] = await loadImageAsBase64(gameId, refSlugs[i]);
-    }
+    const slugsToLoad = refSlugs.slice(0, 4);
+    const base64Images = await Promise.all(
+      slugsToLoad.map((slug) => loadImageAsBase64(gameId, slug)),
+    );
+    base64Images.forEach((b64, i) => {
+      body[refKeys[i]] = b64;
+    });
   }
 
   // Submit job

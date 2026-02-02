@@ -6,10 +6,14 @@ let _client: ReturnType<typeof createClient> | null = null;
 
 function getStorageClient() {
   if (!_client) {
-    _client = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SECRET_KEY!,
-    );
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.SUPABASE_SECRET_KEY;
+    if (!url || !key) {
+      throw new Error(
+        "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SECRET_KEY",
+      );
+    }
+    _client = createClient(url, key);
   }
   return _client;
 }
@@ -20,8 +24,22 @@ function sanitizeSlug(slug: string): string {
   return safe;
 }
 
+function validateGameId(gameId: string): string {
+  if (!gameId || /[^a-z0-9_-]/i.test(gameId)) {
+    throw new Error(`Invalid gameId: "${gameId}"`);
+  }
+  return gameId;
+}
+
+function validateStoragePath(storagePath: string): string {
+  if (!storagePath.startsWith("games/") || storagePath.includes("..")) {
+    throw new Error(`Invalid storage path: "${storagePath}"`);
+  }
+  return storagePath;
+}
+
 function storageKey(gameId: string, slug: string): string {
-  return `games/${gameId}/images/${sanitizeSlug(slug)}.jpeg`;
+  return `games/${validateGameId(gameId)}/images/${sanitizeSlug(slug)}.jpeg`;
 }
 
 /**
@@ -29,8 +47,11 @@ function storageKey(gameId: string, slug: string): string {
  * Pure string concatenation — no API call.
  */
 export function getImageUrl(storagePath: string): string {
-  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  return `${baseUrl}/storage/v1/object/public/${BUCKET_NAME}/${storagePath}`;
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (!baseUrl) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL");
+  }
+  return `${baseUrl}/storage/v1/object/public/${BUCKET_NAME}/${validateStoragePath(storagePath)}`;
 }
 
 /**
@@ -63,6 +84,7 @@ export async function uploadImage(
  * Delete an image from Supabase Storage.
  */
 export async function deleteImage(storagePath: string): Promise<void> {
+  validateStoragePath(storagePath);
   const supabase = getStorageClient();
   const { error } = await supabase.storage
     .from(BUCKET_NAME)
