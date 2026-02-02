@@ -98,16 +98,13 @@ export function extractImagesFromMessages(messages: UIMessage[]): string[] {
       const p = part as {
         type?: string;
         state?: string;
-        output?: { path?: string };
+        output?: { url?: string; path?: string };
       };
-      if (
-        p.type?.startsWith("tool-") &&
-        p.state === "output-available" &&
-        p.output?.path
-      ) {
+      if (p.type?.startsWith("tool-") && p.state === "output-available") {
         const toolName = p.type.replace("tool-", "");
         if (toolName === "create_image" || toolName === "search_image") {
-          images.push(p.output.path);
+          const imageRef = p.output?.url ?? p.output?.path;
+          if (imageRef) images.push(imageRef);
         }
       }
     }

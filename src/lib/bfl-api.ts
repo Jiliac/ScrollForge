@@ -1,6 +1,4 @@
-import { promises as fs } from "fs";
-import path from "path";
-import { getGameFilesDir } from "./game-files";
+import { getImageUrlBySlug } from "./image-index";
 
 const BFL_API_KEY = process.env.BFL_API_KEY;
 
@@ -24,28 +22,30 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function loadImageAsBase64(slug: string): Promise<string> {
-  const imagesDir = path.join(getGameFilesDir(), "images");
-  for (const ext of [".jpeg", ".jpg", ".png", ".webp"]) {
-    const filepath = path.join(imagesDir, `${slug}${ext}`);
-    try {
-      const buffer = await fs.readFile(filepath);
-      const base64 = buffer.toString("base64");
-      const mimeType =
-        ext === ".png"
-          ? "image/png"
-          : ext === ".webp"
-            ? "image/webp"
-            : "image/jpeg";
-      return `data:${mimeType};base64,${base64}`;
-    } catch {
-      continue;
-    }
+export async function loadImageAsBase64(
+  gameId: string,
+  slug: string,
+): Promise<string> {
+  const url = await getImageUrlBySlug(gameId, slug);
+  if (!url) {
+    throw new Error(`Reference image not found in database: ${slug}`);
   }
-  throw new Error(`Image not found for slug: ${slug}`);
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch image for slug: ${slug} (${response.status})`,
+    );
+  }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  const base64 = buffer.toString("base64");
+  const contentType = response.headers.get("content-type") ?? "image/jpeg";
+  return `data:${contentType};base64,${base64}`;
 }
 
 export async function generateImageWithBfl(
+  gameId: string,
   prompt: string,
   refSlugs?: string[],
 ): Promise<Buffer> {
@@ -68,9 +68,13 @@ export async function generateImageWithBfl(
       "input_image_3",
       "input_image_4",
     ];
-    for (let i = 0; i < Math.min(refSlugs.length, 4); i++) {
-      body[refKeys[i]] = await loadImageAsBase64(refSlugs[i]);
-    }
+    const slugsToLoad = refSlugs.slice(0, 4);
+    const base64Images = await Promise.all(
+      slugsToLoad.map((slug) => loadImageAsBase64(gameId, slug)),
+    );
+    base64Images.forEach((b64, i) => {
+      body[refKeys[i]] = b64;
+    });
   }
 
   // Submit job

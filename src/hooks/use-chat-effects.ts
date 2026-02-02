@@ -58,11 +58,13 @@ export function useChatEffects(
           const toolName = tool.type.replace("tool-", "");
           if (
             (toolName === "create_image" || toolName === "search_image") &&
-            tool.output?.path &&
             !processedImageToolsRef.current.has(tool.toolCallId)
           ) {
-            processedImageToolsRef.current.add(tool.toolCallId);
-            onImageChange?.(String(tool.output.path));
+            const imageRef = tool.output?.url ?? tool.output?.path;
+            if (imageRef) {
+              processedImageToolsRef.current.add(tool.toolCallId);
+              onImageChange?.(String(imageRef));
+            }
           }
         }
       }

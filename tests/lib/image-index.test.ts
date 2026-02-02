@@ -3,6 +3,7 @@ import {
   searchImages,
   createImage,
   getImageBySlug,
+  getImageUrlBySlug,
   getAllImages,
 } from "@/lib/image-index";
 
@@ -16,6 +17,13 @@ vi.mock("@/lib/prisma", () => ({
       findMany: vi.fn(),
     },
   },
+}));
+
+vi.mock("@/lib/storage", () => ({
+  getImageUrl: vi.fn(
+    (path: string) =>
+      `https://xyz.supabase.co/storage/v1/object/public/game-images/${path}`,
+  ),
 }));
 
 import { prisma } from "@/lib/prisma";
@@ -197,5 +205,35 @@ describe("getAllImages", () => {
 
     const result = await getAllImages(GAME_ID);
     expect(result).toEqual([]);
+  });
+});
+
+describe("getImageUrlBySlug", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("returns full URL when image exists", async () => {
+    vi.mocked(prisma.image.findFirst).mockResolvedValue({
+      ...mockImage,
+      file: "games/test-game-id/images/tahir-portrait.jpeg",
+    });
+
+    const result = await getImageUrlBySlug(GAME_ID, "tahir-portrait");
+
+    expect(result).toBe(
+      "https://xyz.supabase.co/storage/v1/object/public/game-images/games/test-game-id/images/tahir-portrait.jpeg",
+    );
+    expect(prisma.image.findFirst).toHaveBeenCalledWith({
+      where: { gameId: GAME_ID, slug: "tahir-portrait" },
+      select: { file: true },
+    });
+  });
+
+  it("returns null when image does not exist", async () => {
+    vi.mocked(prisma.image.findFirst).mockResolvedValue(null);
+
+    const result = await getImageUrlBySlug(GAME_ID, "nonexistent");
+    expect(result).toBeNull();
   });
 });

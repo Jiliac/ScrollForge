@@ -7,6 +7,10 @@ vi.mock("@/lib/image-index", () => ({
   searchImages: vi.fn(),
 }));
 
+vi.mock("@/lib/storage", () => ({
+  getImageUrl: vi.fn(),
+}));
+
 describe("makeSearchImage", () => {
   it("returns error when not found", async () => {
     const { searchImages } = await import("@/lib/image-index");
@@ -20,15 +24,19 @@ describe("makeSearchImage", () => {
     expect((res as Record<string, unknown>).success).toBe(false);
   });
 
-  it("returns path when found", async () => {
+  it("returns URL when found", async () => {
     const { searchImages } = await import("@/lib/image-index");
+    const { getImageUrl } = await import("@/lib/storage");
     vi.mocked(searchImages).mockResolvedValueOnce({
       slug: "tahir-portrait",
-      file: "tahir-portrait.jpeg",
+      file: "games/test-game-id/images/tahir-portrait.jpeg",
       prompt: "x",
       tags: ["tahir"],
       referencedIn: "NPCs/Tahir.md",
     });
+    vi.mocked(getImageUrl).mockReturnValueOnce(
+      "https://xyz.supabase.co/storage/v1/object/public/game-images/games/test-game-id/images/tahir-portrait.jpeg",
+    );
 
     const tool = makeSearchImage(GAME_ID);
     const res = await tool.execute!(
@@ -37,7 +45,7 @@ describe("makeSearchImage", () => {
     );
     expect(res).toEqual({
       success: true,
-      path: "images/tahir-portrait.jpeg",
+      url: "https://xyz.supabase.co/storage/v1/object/public/game-images/games/test-game-id/images/tahir-portrait.jpeg",
       slug: "tahir-portrait",
       prompt: "x",
       tags: ["tahir"],

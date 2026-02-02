@@ -7,10 +7,14 @@ interface ImagePaneProps {
   images: string[];
 }
 
-function getApiPath(imagePath: string): string {
-  return imagePath.startsWith("images/")
-    ? `/api/${imagePath}`
-    : `/api/images/${imagePath}`;
+function getImageSrc(imageRef: string): string {
+  // Full URL from Supabase Storage — pass through
+  if (imageRef.startsWith("http://") || imageRef.startsWith("https://")) {
+    return imageRef;
+  }
+  // Legacy relative paths from old messages are no longer supported
+  // (the /api/images route has been removed)
+  return imageRef;
 }
 
 export function ImagePane({ images }: ImagePaneProps) {
@@ -47,7 +51,7 @@ export function ImagePane({ images }: ImagePaneProps) {
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={getApiPath(imagePath)}
+              src={getImageSrc(imagePath)}
               alt={`Image ${index + 1}`}
               className="size-full object-cover"
             />

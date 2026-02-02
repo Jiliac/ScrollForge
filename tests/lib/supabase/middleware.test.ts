@@ -29,13 +29,13 @@ function makeRequest(pathname: string) {
 
 const originalEnv = {
   url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-  key: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  key: process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
 };
 
 beforeEach(() => {
   vi.clearAllMocks();
   process.env.NEXT_PUBLIC_SUPABASE_URL = "http://localhost:54321";
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = "test-anon-key";
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "test-anon-key";
 });
 
 afterEach(() => {
@@ -45,9 +45,9 @@ afterEach(() => {
     process.env.NEXT_PUBLIC_SUPABASE_URL = originalEnv.url;
   }
   if (originalEnv.key === undefined) {
-    delete process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    delete process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
   } else {
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = originalEnv.key;
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = originalEnv.key;
   }
 });
 
