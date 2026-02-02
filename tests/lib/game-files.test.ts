@@ -1,35 +1,7 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import path from "path";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const GAME_ID = "test-game-id";
 const USER_ID = "test-user-id";
-
-describe("getGameFilesDir", () => {
-  const originalEnv = process.env.GAME_FILES_DIR;
-
-  afterEach(() => {
-    if (originalEnv) {
-      process.env.GAME_FILES_DIR = originalEnv;
-    } else {
-      delete process.env.GAME_FILES_DIR;
-    }
-    vi.resetModules();
-  });
-
-  it("returns GAME_FILES_DIR env var when set", async () => {
-    process.env.GAME_FILES_DIR = "/custom/path";
-    const { getGameFilesDir } = await import("@/lib/game-files");
-    expect(getGameFilesDir()).toBe("/custom/path");
-  });
-
-  it("returns default path when env var not set", async () => {
-    delete process.env.GAME_FILES_DIR;
-    const { getGameFilesDir } = await import("@/lib/game-files");
-    expect(getGameFilesDir()).toBe(
-      path.join(process.cwd(), "game_files_local"),
-    );
-  });
-});
 
 describe("getCurrentGame", () => {
   beforeEach(() => {

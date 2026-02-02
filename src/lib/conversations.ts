@@ -100,10 +100,7 @@ export function extractImagesFromMessages(messages: UIMessage[]): string[] {
         state?: string;
         output?: { url?: string; path?: string };
       };
-      if (
-        p.type?.startsWith("tool-") &&
-        p.state === "output-available"
-      ) {
+      if (p.type?.startsWith("tool-") && p.state === "output-available") {
         const toolName = p.type.replace("tool-", "");
         if (toolName === "create_image" || toolName === "search_image") {
           const imageRef = p.output?.url ?? p.output?.path;

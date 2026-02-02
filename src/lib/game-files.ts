@@ -7,7 +7,6 @@ import { prisma } from "./prisma";
  */
 export async function getCurrentGame(userId: string): Promise<{
   id: string;
-  filesDir: string;
 }> {
   const game = await prisma.game.findFirst({
     where: { userId },

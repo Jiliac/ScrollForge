@@ -8,14 +8,13 @@ interface ImagePaneProps {
 }
 
 function getImageSrc(imageRef: string): string {
-  // New format: full URL from Supabase Storage
+  // Full URL from Supabase Storage — pass through
   if (imageRef.startsWith("http://") || imageRef.startsWith("https://")) {
     return imageRef;
   }
-  // Legacy format: relative path routed through API
-  return imageRef.startsWith("images/")
-    ? `/api/${imageRef}`
-    : `/api/images/${imageRef}`;
+  // Legacy relative paths from old messages are no longer supported
+  // (the /api/images route has been removed)
+  return imageRef;
 }
 
 export function ImagePane({ images }: ImagePaneProps) {

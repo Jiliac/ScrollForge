@@ -2,15 +2,26 @@ import { createClient } from "@supabase/supabase-js";
 
 const BUCKET_NAME = "game-images";
 
+let _client: ReturnType<typeof createClient> | null = null;
+
 function getStorageClient() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  );
+  if (!_client) {
+    _client = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SECRET_KEY!,
+    );
+  }
+  return _client;
+}
+
+function sanitizeSlug(slug: string): string {
+  const safe = slug.replace(/[^a-z0-9_-]/gi, "");
+  if (!safe) throw new Error(`Invalid image slug: "${slug}"`);
+  return safe;
 }
 
 function storageKey(gameId: string, slug: string): string {
-  return `games/${gameId}/images/${slug}.jpeg`;
+  return `games/${gameId}/images/${sanitizeSlug(slug)}.jpeg`;
 }
 
 /**
@@ -18,11 +29,8 @@ function storageKey(gameId: string, slug: string): string {
  * Pure string concatenation — no API call.
  */
 export function getImageUrl(storagePath: string): string {
-  const supabase = getStorageClient();
-  const { data } = supabase.storage
-    .from(BUCKET_NAME)
-    .getPublicUrl(storagePath);
-  return data.publicUrl;
+  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  return `${baseUrl}/storage/v1/object/public/${BUCKET_NAME}/${storagePath}`;
 }
 
 /**
@@ -37,10 +45,12 @@ export async function uploadImage(
   const supabase = getStorageClient();
   const key = storageKey(gameId, slug);
 
-  const { error } = await supabase.storage.from(BUCKET_NAME).upload(key, buffer, {
-    contentType: "image/jpeg",
-    upsert: true,
-  });
+  const { error } = await supabase.storage
+    .from(BUCKET_NAME)
+    .upload(key, buffer, {
+      contentType: "image/jpeg",
+      upsert: true,
+    });
 
   if (error) {
     throw new Error(`Storage upload failed: ${error.message}`);

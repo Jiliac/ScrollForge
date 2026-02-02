@@ -3,17 +3,6 @@ import { makeCreateImage } from "@/app/api/chat/tools/create-image";
 
 const GAME_ID = "test-game-id";
 
-vi.mock("fs", () => ({
-  promises: {
-    mkdir: vi.fn(),
-    writeFile: vi.fn(),
-  },
-}));
-
-vi.mock("@/lib/game-files", () => ({
-  getGameFilesDir: () => "/tmp/game",
-}));
-
 vi.mock("@/lib/bfl-api", () => ({
   generateImageWithBfl: vi.fn(),
 }));
@@ -22,30 +11,28 @@ vi.mock("@/lib/image-index", () => ({
   createImage: vi.fn(),
 }));
 
-vi.mock("@/lib/prisma", () => ({
-  prisma: {
-    $executeRaw: vi.fn(),
-  },
+vi.mock("@/lib/storage", () => ({
+  uploadImage: vi.fn(),
+  getImageUrl: vi.fn(),
 }));
-
-vi.mock("@/lib/normalize-path", () => ({
-  normalizeGameFilePath: (p: string) => p,
-}));
-
-import { prisma } from "@/lib/prisma";
 
 describe("makeCreateImage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("saves image, inserts DB record, and updates markdown reference file", async () => {
-    const fs = await import("fs");
+  it("uploads to storage, inserts DB record, and returns URL", async () => {
     const { generateImageWithBfl } = await import("@/lib/bfl-api");
     const { createImage } = await import("@/lib/image-index");
+    const { uploadImage, getImageUrl } = await import("@/lib/storage");
 
     vi.mocked(generateImageWithBfl).mockResolvedValueOnce(Buffer.from("img"));
-    vi.mocked(prisma.$executeRaw).mockResolvedValueOnce(1);
+    vi.mocked(uploadImage).mockResolvedValueOnce(
+      "games/test-game-id/images/tahir-portrait.jpeg",
+    );
+    vi.mocked(getImageUrl).mockReturnValueOnce(
+      "https://xyz.supabase.co/storage/v1/object/public/game-images/games/test-game-id/images/tahir-portrait.jpeg",
+    );
 
     const tool = makeCreateImage(GAME_ID);
     const res = await tool.execute!(
@@ -59,40 +46,42 @@ describe("makeCreateImage", () => {
       { messages: [], toolCallId: "test" },
     );
 
-    expect(generateImageWithBfl).toHaveBeenCalledWith("style base ...", [
-      "tahir-portrait-old",
-    ]);
+    expect(generateImageWithBfl).toHaveBeenCalledWith(
+      GAME_ID,
+      "style base ...",
+      ["tahir-portrait-old"],
+    );
 
-    expect(fs.promises.mkdir).toHaveBeenCalledWith("/tmp/game/images", {
-      recursive: true,
-    });
-    expect(fs.promises.writeFile).toHaveBeenCalledWith(
-      "/tmp/game/images/tahir-portrait.jpeg",
+    expect(uploadImage).toHaveBeenCalledWith(
+      GAME_ID,
+      "tahir-portrait",
       expect.any(Buffer),
     );
 
     expect(createImage).toHaveBeenCalledWith(GAME_ID, {
       slug: "tahir-portrait",
-      file: "tahir-portrait.jpeg",
+      file: "games/test-game-id/images/tahir-portrait.jpeg",
       prompt: "style base ...",
       tags: ["tahir"],
       referencedIn: "NPCs/Tahir.md",
     });
 
-    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
-
     expect(res).toEqual({
       success: true,
-      path: "images/tahir-portrait.jpeg",
+      url: "https://xyz.supabase.co/storage/v1/object/public/game-images/games/test-game-id/images/tahir-portrait.jpeg",
       slug: "tahir-portrait",
     });
   });
 
-  it("uses atomic upsert for reference file", async () => {
+  it("does not embed markdown references in game files", async () => {
     const { generateImageWithBfl } = await import("@/lib/bfl-api");
+    const { uploadImage, getImageUrl } = await import("@/lib/storage");
 
     vi.mocked(generateImageWithBfl).mockResolvedValueOnce(Buffer.from("img"));
-    vi.mocked(prisma.$executeRaw).mockResolvedValueOnce(1);
+    vi.mocked(uploadImage).mockResolvedValueOnce(
+      "games/test-game-id/images/bazaar-morning.jpeg",
+    );
+    vi.mocked(getImageUrl).mockReturnValueOnce("https://example.com/img.jpeg");
 
     const tool = makeCreateImage(GAME_ID);
     await tool.execute!(
@@ -105,7 +94,31 @@ describe("makeCreateImage", () => {
       { messages: [], toolCallId: "test" },
     );
 
-    // Verify atomic upsert was used (not separate findUnique + create/update)
-    expect(prisma.$executeRaw).toHaveBeenCalledTimes(1);
+    // No prisma.$executeRaw call — markdown embedding removed
+    // Just verify uploadImage was called (the main write operation)
+    expect(uploadImage).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns error on failure", async () => {
+    const { generateImageWithBfl } = await import("@/lib/bfl-api");
+    vi.mocked(generateImageWithBfl).mockRejectedValueOnce(
+      new Error("BFL_API_KEY not configured"),
+    );
+
+    const tool = makeCreateImage(GAME_ID);
+    const res = await tool.execute!(
+      {
+        slug: "fail",
+        prompt: "x",
+        tags: [],
+        reference_file: "NPCs/X.md",
+      },
+      { messages: [], toolCallId: "test" },
+    );
+
+    expect(res).toEqual({
+      success: false,
+      error: "BFL_API_KEY not configured",
+    });
   });
 });

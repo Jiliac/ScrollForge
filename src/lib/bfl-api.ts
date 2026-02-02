@@ -1,5 +1,4 @@
 import { getImageUrlBySlug } from "./image-index";
-import { getImageUrl } from "./storage";
 
 const BFL_API_KEY = process.env.BFL_API_KEY;
 
@@ -27,10 +26,10 @@ export async function loadImageAsBase64(
   gameId: string,
   slug: string,
 ): Promise<string> {
-  // Look up the stored URL, or construct it from the default storage path
-  const url =
-    (await getImageUrlBySlug(gameId, slug)) ??
-    getImageUrl(`games/${gameId}/images/${slug}.jpeg`);
+  const url = await getImageUrlBySlug(gameId, slug);
+  if (!url) {
+    throw new Error(`Reference image not found in database: ${slug}`);
+  }
 
   const response = await fetch(url);
   if (!response.ok) {
