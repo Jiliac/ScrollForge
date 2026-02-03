@@ -1,5 +1,5 @@
 import { createUIMessageStream, createUIMessageStreamResponse } from "ai";
-import { requireGameAccess } from "@/lib/auth";
+import { checkGameAccess } from "@/lib/auth";
 import { executePlayStream } from "@/lib/play-orchestrator";
 import { validateRequestBody } from "@/lib/validate-chat-request";
 
@@ -11,31 +11,20 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return new Response(JSON.stringify({ error: "Invalid JSON" }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
   const validation = validateRequestBody(body);
 
   if (!validation.success) {
-    return new Response(JSON.stringify({ error: validation.error }), {
-      status: 400,
-      headers: { "Content-Type": "application/json" },
-    });
+    return Response.json({ error: validation.error }, { status: 400 });
   }
 
   const { messages, conversationId, gameId } = validation.data;
 
-  let userId: string;
-  try {
-    userId = await requireGameAccess(gameId);
-  } catch {
-    return new Response(JSON.stringify({ error: "Game not found" }), {
-      status: 403,
-      headers: { "Content-Type": "application/json" },
-    });
+  const userId = await checkGameAccess(gameId);
+  if (!userId) {
+    return Response.json({ error: "Game not found" }, { status: 403 });
   }
 
   const stream = createUIMessageStream({

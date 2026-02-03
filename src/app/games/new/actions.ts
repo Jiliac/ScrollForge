@@ -13,6 +13,14 @@ export async function createGameAction(formData: FormData) {
     throw new Error("Game name is required");
   }
 
+  if (name.trim().length > 200) {
+    throw new Error("Game name too long (max 200 characters)");
+  }
+
+  if (description && description.trim().length > 1000) {
+    throw new Error("Description too long (max 1000 characters)");
+  }
+
   const game = await prisma.game.create({
     data: {
       userId,

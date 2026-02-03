@@ -51,6 +51,7 @@ export function GameDashboardClient({
         <Link
           href="/"
           className="p-2 text-primary hover:text-primary/80 transition-colors"
+          aria-label="All Games"
           title="All Games"
         >
           <HomeIcon className="size-5" />
@@ -68,6 +69,7 @@ export function GameDashboardClient({
         <button
           onClick={() => setShowHistory(!showHistory)}
           className="absolute top-4 right-4 z-10 p-2 text-primary hover:text-primary/80 transition-colors"
+          aria-label="Conversation History"
           title="Conversation History"
         >
           <MessageSquareIcon className="size-5" />

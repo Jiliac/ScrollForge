@@ -22,21 +22,36 @@ export function GameFilesList({
 }) {
   const [files, setFiles] = useState<GameFile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     fetch(`/api/game-files?gameId=${encodeURIComponent(gameId)}`)
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Request failed");
+        return res.json();
+      })
       .then((data) => {
         setFiles(data.files || []);
+        setError(false);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
+      .catch((err) => {
+        console.error("Failed to load game files:", err);
+        setError(true);
+        setLoading(false);
+      });
   }, [refreshKey, gameId]);
 
   if (loading) {
     return (
       <div className="text-xs text-muted-foreground">Loading files...</div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-xs text-destructive">Failed to load game files</div>
     );
   }
 

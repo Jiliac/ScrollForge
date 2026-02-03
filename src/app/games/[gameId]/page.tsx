@@ -9,6 +9,17 @@ type Props = {
   params: Promise<{ gameId: string }>;
 };
 
+function extractMessagePreview(partsJson: string | undefined): string {
+  if (!partsJson) return "";
+  try {
+    const parts = JSON.parse(partsJson);
+    const textPart = parts.find((p: { type: string }) => p.type === "text");
+    return textPart?.text?.slice(0, 100) ?? "";
+  } catch {
+    return "";
+  }
+}
+
 export default async function GamePage({ params }: Props) {
   const { gameId } = await params;
 
@@ -76,19 +87,7 @@ export default async function GamePage({ params }: Props) {
   const recentConversations = game.conversations.map((conv) => ({
     id: conv.id,
     updatedAt: conv.updatedAt.toISOString(),
-    preview: conv.messages[0]
-      ? (() => {
-          try {
-            const parts = JSON.parse(conv.messages[0].parts);
-            const textPart = parts.find(
-              (p: { type: string }) => p.type === "text",
-            );
-            return textPart?.text?.slice(0, 100) ?? "";
-          } catch {
-            return "";
-          }
-        })()
-      : "",
+    preview: extractMessagePreview(conv.messages[0]?.parts),
   }));
 
   return (
