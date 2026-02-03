@@ -4,13 +4,13 @@ import {
   stepCountIs,
   type UIMessage,
 } from "ai";
-import { getCurrentGame, loadGameContext } from "@/lib/game-files";
+import { loadGameContext } from "@/lib/game-files";
 import { ensureConversationExists } from "@/lib/conversations";
 import { createAskTools } from "../chat/tools";
 import { loadGameConfig } from "@/lib/game-config";
 import { getAskSystemPrompt } from "@/agents/prompts";
 import { defaultModel } from "@/lib/ai-model";
-import { requireUserId } from "@/lib/auth";
+import { requireGameAccess } from "@/lib/auth";
 import { validateRequestBody } from "@/lib/validate-chat-request";
 
 // Allow streaming responses up to 30 seconds.
@@ -35,11 +35,17 @@ export async function POST(req: Request) {
     });
   }
 
-  const { messages, conversationId } = validation.data;
+  const { messages, conversationId, gameId } = validation.data;
 
-  const userId = await requireUserId();
-  const game = await getCurrentGame(userId);
-  const gameId = game.id;
+  let userId: string;
+  try {
+    userId = await requireGameAccess(gameId);
+  } catch {
+    return new Response(JSON.stringify({ error: "Game not found" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   await ensureConversationExists(conversationId, userId, gameId);
 

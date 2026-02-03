@@ -36,13 +36,14 @@ type TokenUsage = {
 
 function createModeAwareTransport(
   conversationId: string,
+  gameId: string,
   getModeApi: () => string,
 ) {
   return new DefaultChatTransport({
     api: "/api/play", // Placeholder; overridden by prepareSendMessagesRequest
-    body: () => ({ conversationId }),
+    body: () => ({ conversationId, gameId }),
     prepareSendMessagesRequest: ({ messages, body }) => ({
-      body: { messages, ...body, conversationId },
+      body: { messages, ...body, conversationId, gameId },
       api: getModeApi(),
     }),
   });
@@ -50,6 +51,7 @@ function createModeAwareTransport(
 
 export type ChatSectionProps = {
   conversationId?: string;
+  gameId: string;
   initialMessages?: UIMessage[];
   tokenUsage?: TokenUsage;
   onToolComplete?: () => void;
@@ -58,6 +60,7 @@ export type ChatSectionProps = {
 
 export function ChatSection({
   conversationId: initialConversationId,
+  gameId,
   initialMessages,
   tokenUsage,
   onToolComplete,
@@ -84,7 +87,7 @@ export function ChatSection({
   // coexist in the same conversation so the user can seamlessly switch context.
   // eslint-disable-next-line react-hooks/refs -- modeRef is captured in a closure but only read inside prepareSendMessagesRequest, not during render
   const [transport] = useState(() =>
-    createModeAwareTransport(conversationId, () =>
+    createModeAwareTransport(conversationId, gameId, () =>
       modeRef.current === "play" ? "/api/play" : "/api/ask",
     ),
   );
@@ -117,7 +120,7 @@ export function ChatSection({
             body: JSON.stringify({ messages }),
           });
           // Only set this on home page - signals save is done for redirect
-          if (pathname === "/") setHasSavedInitial(true);
+          if (pathname.startsWith("/games/")) setHasSavedInitial(true);
         } catch (err) {
           console.error("Failed to save messages:", err);
         }
@@ -128,7 +131,11 @@ export function ChatSection({
 
   // Redirect to /chat/[id] after first exchange on home page (after save completes)
   useEffect(() => {
-    if (pathname === "/" && hasSavedInitial && !hasRedirectedRef.current) {
+    if (
+      pathname.startsWith("/games/") &&
+      hasSavedInitial &&
+      !hasRedirectedRef.current
+    ) {
       hasRedirectedRef.current = true;
       router.push(`/chat/${conversationId}`);
     }

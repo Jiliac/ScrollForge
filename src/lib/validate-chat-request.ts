@@ -12,6 +12,7 @@ const messageSchema = z
 
 const requestBodySchema = z.object({
   conversationId: z.string().min(1),
+  gameId: z.string().min(1),
   messages: z.array(messageSchema).min(1),
 });
 

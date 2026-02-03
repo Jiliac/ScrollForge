@@ -2,15 +2,15 @@
  * Seed game files from a local folder into the database.
  *
  * Usage:
- *   npx tsx scripts/seed-game-files.ts <folder-path> <userId>
+ *   npx tsx scripts/seed-game-files.ts <folder-path> <userId> [gameName]
  *
  * Example:
- *   npx tsx scripts/seed-game-files.ts ./game_files 4945e9a2-202b-477f-9b9e-e3b2d56b951f
+ *   npx tsx scripts/seed-game-files.ts ./game_files 4945e9a2-202b-477f-9b9e-e3b2d56b951f "Dark Bazaar"
  *
  * What it does:
  *   1. Reads all .md files recursively from the folder
  *   2. Reads config.yaml, parses it, stores as Game.config JSONB
- *   3. Upserts a Game record with the given userId
+ *   3. Creates a Game record with the given userId and name
  *   4. Upserts all .md files as GameFile rows
  */
 
@@ -53,13 +53,14 @@ async function readMdFiles(
 async function main() {
   const folderPath = process.argv[2];
   const userId = process.argv[3];
+  const gameName = process.argv[4] || path.basename(folderPath || "game");
 
   if (!folderPath || !userId) {
     console.error(
-      "Usage: npx tsx scripts/seed-game-files.ts <folder-path> <userId>",
+      "Usage: npx tsx scripts/seed-game-files.ts <folder-path> <userId> [gameName]",
     );
     console.error(
-      "\nExample: npx tsx scripts/seed-game-files.ts ./game_files 4945e9a2-202b-477f-9b9e-e3b2d56b951f",
+      '\nExample: npx tsx scripts/seed-game-files.ts ./game_files 4945e9a2-202b-477f-9b9e-e3b2d56b951f "Dark Bazaar"',
     );
     process.exit(1);
   }
@@ -95,17 +96,32 @@ async function main() {
     console.log("No config.yaml found, Game.config will be null");
   }
 
-  // Upsert Game record
-  const game = await prisma.game.upsert({
-    where: { filesDir: absolutePath },
-    update: { userId, config: config ?? undefined },
-    create: { filesDir: absolutePath, userId, config: config ?? undefined },
+  // Create Game record
+  const game = await prisma.game.create({
+    data: {
+      userId,
+      name: gameName,
+      config: config ?? undefined,
+    },
   });
-  console.log(`Game: ${game.id} (filesDir: ${game.filesDir})\n`);
+  console.log(`Game: ${game.id} (name: ${game.name})\n`);
 
   // Read all .md files
   const mdFiles = await readMdFiles(absolutePath, absolutePath);
   console.log(`Found ${mdFiles.length} .md files\n`);
+
+  // Also seed config.yaml as a GameFile
+  try {
+    const configContent = await fs.readFile(configPath, "utf-8");
+    await prisma.gameFile.upsert({
+      where: { gameId_path: { gameId: game.id, path: "config.yaml" } },
+      create: { gameId: game.id, path: "config.yaml", content: configContent },
+      update: { content: configContent },
+    });
+    console.log("  created: config.yaml");
+  } catch {
+    // No config.yaml, skip
+  }
 
   // Upsert all files
   let created = 0;

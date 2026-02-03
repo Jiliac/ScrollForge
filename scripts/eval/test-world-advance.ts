@@ -12,9 +12,7 @@
 
 import "dotenv/config";
 import { runWorldAdvance } from "@/agents/world-builder";
-import { getCurrentGameId, loadGameContext } from "@/lib/game-files";
-
-const TEST_USER_ID = "4945e9a2-202b-477f-9b9e-e3b2d56b951f";
+import { loadGameContext } from "@/lib/game-files";
 
 type WorldAdvanceStep = { type: "world_advance"; description: string };
 
@@ -61,7 +59,11 @@ async function main() {
     steps = [{ type: "world_advance", description }];
   }
 
-  const gameId = await getCurrentGameId(TEST_USER_ID);
+  const gameId = process.env.GAME_ID;
+  if (!gameId) {
+    console.error("Set GAME_ID env var");
+    process.exit(1);
+  }
   console.log("Loading game context...");
   const context = await loadGameContext(gameId);
   console.log(`Context loaded (${context.length} chars)\n`);

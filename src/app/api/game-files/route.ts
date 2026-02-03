@@ -1,14 +1,26 @@
-import { getCurrentGame } from "@/lib/game-files";
-import { requireUserId } from "@/lib/auth";
+import { requireGameAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function GET() {
-  const userId = await requireUserId();
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const gameId = searchParams.get("gameId");
+
+  if (!gameId) {
+    return Response.json(
+      { error: "gameId query parameter is required" },
+      { status: 400 },
+    );
+  }
 
   try {
-    const game = await getCurrentGame(userId);
+    await requireGameAccess(gameId);
+  } catch {
+    return Response.json({ error: "Game not found" }, { status: 403 });
+  }
+
+  try {
     const files = await prisma.gameFile.findMany({
-      where: { gameId: game.id },
+      where: { gameId },
       orderBy: { path: "asc" },
     });
 

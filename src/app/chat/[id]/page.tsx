@@ -24,6 +24,7 @@ export default async function ChatPage({ params }: Props) {
   return (
     <ChatPageClient
       conversationId={conversation.id}
+      gameId={conversation.gameId}
       initialMessages={conversation.messages}
       initialImages={initialImages}
     />

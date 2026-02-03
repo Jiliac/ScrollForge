@@ -13,20 +13,26 @@ type GameFile = {
   content: string;
 };
 
-export function GameFilesList({ refreshKey }: { refreshKey?: number }) {
+export function GameFilesList({
+  refreshKey,
+  gameId,
+}: {
+  refreshKey?: number;
+  gameId: string;
+}) {
   const [files, setFiles] = useState<GameFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    fetch("/api/game-files")
+    fetch(`/api/game-files?gameId=${encodeURIComponent(gameId)}`)
       .then((res) => res.json())
       .then((data) => {
         setFiles(data.files || []);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [refreshKey]);
+  }, [refreshKey, gameId]);
 
   if (loading) {
     return (

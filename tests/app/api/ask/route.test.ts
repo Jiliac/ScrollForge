@@ -22,12 +22,11 @@ vi.mock("@/lib/ai-model", () => ({
 }));
 
 vi.mock("@/lib/auth", () => ({
-  requireUserId: vi.fn().mockResolvedValue(USER_ID),
+  requireGameAccess: vi.fn().mockResolvedValue(USER_ID),
 }));
 
 vi.mock("@/lib/game-files", () => ({
-  getCurrentGame: vi.fn().mockResolvedValue({ id: GAME_ID }),
-  loadGameContext: vi.fn().mockResolvedValue(null),
+  loadGameContext: vi.fn().mockResolvedValue(""),
 }));
 
 vi.mock("@/lib/game-config", () => ({
@@ -78,7 +77,7 @@ const validMessage = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(loadGameContext).mockResolvedValue(null);
+  vi.mocked(loadGameContext).mockResolvedValue("");
   mockToUIMessageStreamResponse.mockReturnValue(new Response("ok"));
 });
 
@@ -95,12 +94,23 @@ describe("POST /api/ask", () => {
   });
 
   it("returns 400 for missing messages", async () => {
-    const res = await POST(makeRequest({ conversationId: CONV_ID }));
+    const res = await POST(
+      makeRequest({ conversationId: CONV_ID, gameId: GAME_ID }),
+    );
     expect(res.status).toBe(400);
   });
 
   it("returns 400 for missing conversationId", async () => {
-    const res = await POST(makeRequest({ messages: [validMessage] }));
+    const res = await POST(
+      makeRequest({ messages: [validMessage], gameId: GAME_ID }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 400 for missing gameId", async () => {
+    const res = await POST(
+      makeRequest({ conversationId: CONV_ID, messages: [validMessage] }),
+    );
     expect(res.status).toBe(400);
   });
 
@@ -108,6 +118,7 @@ describe("POST /api/ask", () => {
     await POST(
       makeRequest({
         conversationId: CONV_ID,
+        gameId: GAME_ID,
         messages: [validMessage],
       }),
     );
@@ -129,6 +140,7 @@ describe("POST /api/ask", () => {
     await POST(
       makeRequest({
         conversationId: CONV_ID,
+        gameId: GAME_ID,
         messages: [validMessage],
       }),
     );
@@ -144,11 +156,12 @@ describe("POST /api/ask", () => {
   });
 
   it("does not prepend context when loadGameContext returns null", async () => {
-    vi.mocked(loadGameContext).mockResolvedValueOnce(null);
+    vi.mocked(loadGameContext).mockResolvedValueOnce("");
 
     await POST(
       makeRequest({
         conversationId: CONV_ID,
+        gameId: GAME_ID,
         messages: [validMessage],
       }),
     );
@@ -164,6 +177,7 @@ describe("POST /api/ask", () => {
     await POST(
       makeRequest({
         conversationId: CONV_ID,
+        gameId: GAME_ID,
         messages: [validMessage],
       }),
     );
