@@ -13,7 +13,9 @@ vi.mock("ai", () => ({
   streamText: vi.fn().mockReturnValue({
     toUIMessageStreamResponse: mockToUIMessageStreamResponse,
   }),
-  convertToModelMessages: vi.fn().mockResolvedValue([]),
+  convertToModelMessages: vi
+    .fn()
+    .mockResolvedValue([{ role: "user", content: "converted" }]),
   stepCountIs: vi.fn().mockReturnValue({ type: "step-count" }),
 }));
 
@@ -22,12 +24,11 @@ vi.mock("@/lib/ai-model", () => ({
 }));
 
 vi.mock("@/lib/auth", () => ({
-  requireUserId: vi.fn().mockResolvedValue(USER_ID),
+  checkGameAccess: vi.fn().mockResolvedValue(USER_ID),
 }));
 
 vi.mock("@/lib/game-files", () => ({
-  getCurrentGame: vi.fn().mockResolvedValue({ id: GAME_ID }),
-  loadGameContext: vi.fn().mockResolvedValue(null),
+  loadGameContext: vi.fn().mockResolvedValue(""),
 }));
 
 vi.mock("@/lib/game-config", () => ({
@@ -59,6 +60,7 @@ vi.mock("@/agents/prompts", () => ({
 import { POST } from "@/app/api/ask/route";
 import { streamText, convertToModelMessages } from "ai";
 import { loadGameContext } from "@/lib/game-files";
+import { checkGameAccess } from "@/lib/auth";
 import { createAskTools } from "@/app/api/chat/tools";
 import { getAskSystemPrompt } from "@/agents/prompts";
 
@@ -78,7 +80,7 @@ const validMessage = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.mocked(loadGameContext).mockResolvedValue(null);
+  vi.mocked(loadGameContext).mockResolvedValue("");
   mockToUIMessageStreamResponse.mockReturnValue(new Response("ok"));
 });
 
@@ -95,19 +97,45 @@ describe("POST /api/ask", () => {
   });
 
   it("returns 400 for missing messages", async () => {
-    const res = await POST(makeRequest({ conversationId: CONV_ID }));
+    const res = await POST(
+      makeRequest({ conversationId: CONV_ID, gameId: GAME_ID }),
+    );
     expect(res.status).toBe(400);
   });
 
   it("returns 400 for missing conversationId", async () => {
-    const res = await POST(makeRequest({ messages: [validMessage] }));
+    const res = await POST(
+      makeRequest({ messages: [validMessage], gameId: GAME_ID }),
+    );
     expect(res.status).toBe(400);
+  });
+
+  it("returns 400 for missing gameId", async () => {
+    const res = await POST(
+      makeRequest({ conversationId: CONV_ID, messages: [validMessage] }),
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it("returns 403 when checkGameAccess returns null", async () => {
+    vi.mocked(checkGameAccess).mockResolvedValueOnce(null);
+    const res = await POST(
+      makeRequest({
+        conversationId: CONV_ID,
+        gameId: GAME_ID,
+        messages: [validMessage],
+      }),
+    );
+    expect(res.status).toBe(403);
+    const json = await res.json();
+    expect(json.error).toBe("Game not found");
   });
 
   it("calls streamText with ask tools and ask prompt", async () => {
     await POST(
       makeRequest({
         conversationId: CONV_ID,
+        gameId: GAME_ID,
         messages: [validMessage],
       }),
     );
@@ -119,8 +147,36 @@ describe("POST /api/ask", () => {
         model: "mock-model",
         system: "ask-system-prompt",
         tools: { search_image: {} },
+        messages: [{ role: "user", content: "converted" }],
       }),
     );
+  });
+
+  it("passes messageMetadata callback to toUIMessageStreamResponse", async () => {
+    await POST(
+      makeRequest({
+        conversationId: CONV_ID,
+        gameId: GAME_ID,
+        messages: [validMessage],
+      }),
+    );
+
+    expect(mockToUIMessageStreamResponse).toHaveBeenCalledWith(
+      expect.objectContaining({
+        messageMetadata: expect.any(Function),
+      }),
+    );
+
+    const { messageMetadata } = mockToUIMessageStreamResponse.mock.calls[0][0];
+    const finishPart = {
+      type: "finish",
+      totalUsage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+    };
+    expect(messageMetadata({ part: finishPart })).toEqual({
+      conversationId: CONV_ID,
+      usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30 },
+    });
+    expect(messageMetadata({ part: { type: "text-delta" } })).toBeUndefined();
   });
 
   it("prepends game context message when context exists", async () => {
@@ -129,6 +185,7 @@ describe("POST /api/ask", () => {
     await POST(
       makeRequest({
         conversationId: CONV_ID,
+        gameId: GAME_ID,
         messages: [validMessage],
       }),
     );
@@ -144,11 +201,12 @@ describe("POST /api/ask", () => {
   });
 
   it("does not prepend context when loadGameContext returns null", async () => {
-    vi.mocked(loadGameContext).mockResolvedValueOnce(null);
+    vi.mocked(loadGameContext).mockResolvedValueOnce("");
 
     await POST(
       makeRequest({
         conversationId: CONV_ID,
+        gameId: GAME_ID,
         messages: [validMessage],
       }),
     );
@@ -164,6 +222,7 @@ describe("POST /api/ask", () => {
     await POST(
       makeRequest({
         conversationId: CONV_ID,
+        gameId: GAME_ID,
         messages: [validMessage],
       }),
     );

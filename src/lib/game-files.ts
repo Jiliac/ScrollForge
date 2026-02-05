@@ -1,32 +1,6 @@
 import { prisma } from "./prisma";
 
 /**
- * Get the Game record for the given user. Returns the most recently created game.
- * Throws if no game exists.
- * TODO(phase-4): replace with explicit game selection when multi-game support lands.
- */
-export async function getCurrentGame(userId: string): Promise<{
-  id: string;
-}> {
-  const game = await prisma.game.findFirst({
-    where: { userId },
-    orderBy: { createdAt: "desc" },
-  });
-
-  if (!game) {
-    throw new Error("No game found. Please complete onboarding first.");
-  }
-
-  return game;
-}
-
-/** Convenience: just get the ID. */
-export async function getCurrentGameId(userId: string): Promise<string> {
-  const game = await getCurrentGame(userId);
-  return game.id;
-}
-
-/**
  * Load game context from GameFile rows in the database.
  * TODO: this loads ALL files into memory. Fine for current game sizes,
  * but will need pagination or selective loading for large games.

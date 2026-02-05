@@ -11,7 +11,8 @@ const messageSchema = z
   .passthrough();
 
 const requestBodySchema = z.object({
-  conversationId: z.string().min(1),
+  conversationId: z.string().min(1).max(100),
+  gameId: z.string().min(1).max(100),
   messages: z.array(messageSchema).min(1),
 });
 

@@ -11,9 +11,7 @@
 
 import "dotenv/config";
 import { runFactionTurn } from "@/agents/faction-turn";
-import { getCurrentGameId, loadGameContext } from "@/lib/game-files";
-
-const TEST_USER_ID = "4945e9a2-202b-477f-9b9e-e3b2d56b951f";
+import { loadGameContext } from "@/lib/game-files";
 
 type FactionTurnStep = {
   type: "faction_turn";
@@ -55,7 +53,11 @@ async function main() {
     steps = [{ type: "faction_turn", faction, situation }];
   }
 
-  const gameId = await getCurrentGameId(TEST_USER_ID);
+  const gameId = process.env.GAME_ID;
+  if (!gameId) {
+    console.error("Set GAME_ID env var");
+    process.exit(1);
+  }
   console.log("Loading game context...");
   const context = await loadGameContext(gameId);
   console.log(`Context loaded (${context.length} chars)\n`);

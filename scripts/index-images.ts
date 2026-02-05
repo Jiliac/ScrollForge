@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 /**
- * Script to scan game_files/images directory and index all images in the database
- * Usage: pnpm tsx scripts/index-images.ts
+ * Script to scan a local images directory and index all images in the database.
+ *
+ * Usage:
+ *   pnpm tsx scripts/index-images.ts <gameId> [imagesDir]
+ *
+ * If imagesDir is not provided, defaults to GAME_FILES_DIR/images or game_files_local/images.
  */
 
 import { config } from "dotenv";
@@ -11,12 +15,6 @@ import { prisma } from "@/lib/prisma";
 
 // Load .env file BEFORE accessing process.env
 config();
-
-function getGameFilesDir(): string {
-  return (
-    process.env.GAME_FILES_DIR || path.join(process.cwd(), "game_files_local")
-  );
-}
 
 // Convert filename to slug (e.g., "taverne-du-troll-ivre-interior.jpeg" -> "taverne-du-troll-ivre-interior")
 function filenameToSlug(filename: string): string {
@@ -29,30 +27,40 @@ function extractTagsFromSlug(slug: string): string[] {
 }
 
 async function indexImages(): Promise<void> {
-  try {
-    const gameFilesDir = getGameFilesDir();
-    const imagesDir = path.join(gameFilesDir, "images");
+  const gameId = process.argv[2];
+  const imagesDir =
+    process.argv[3] ||
+    path.join(
+      process.env.GAME_FILES_DIR ||
+        path.join(process.cwd(), "game_files_local"),
+      "images",
+    );
 
-    console.log(`📁 Scanning images directory: ${imagesDir}`);
+  if (!gameId) {
+    console.error(
+      "Usage: pnpm tsx scripts/index-images.ts <gameId> [imagesDir]",
+    );
+    process.exit(1);
+  }
+
+  try {
+    // Verify game exists
+    const game = await prisma.game.findUnique({ where: { id: gameId } });
+    if (!game) {
+      console.error(`Game not found: ${gameId}`);
+      process.exit(1);
+    }
+
+    console.log(`Scanning images directory: ${imagesDir}`);
+    console.log(`Game: ${game.name} (${game.id})`);
 
     // Check if directory exists
     try {
       await fs.access(imagesDir);
     } catch {
-      console.error(`❌ Images directory not found: ${imagesDir}`);
+      console.error(`Images directory not found: ${imagesDir}`);
       process.exit(1);
     }
-
-    // Get current game ID
-    const userId =
-      process.env.SEED_USER_ID || "4945e9a2-202b-477f-9b9e-e3b2d56b951f";
-    const game = await prisma.game.upsert({
-      where: { filesDir: gameFilesDir },
-      update: {},
-      create: { filesDir: gameFilesDir, userId },
-    });
-
-    console.log(`🎮 Using Game ID: ${game.id}`);
 
     // Read all files in images directory
     const files = await fs.readdir(imagesDir);
@@ -60,7 +68,7 @@ async function indexImages(): Promise<void> {
       /\.(png|jpg|jpeg|gif|webp)$/i.test(f),
     );
 
-    console.log(`📷 Found ${imageFiles.length} image(s)\n`);
+    console.log(`Found ${imageFiles.length} image(s)\n`);
 
     let created = 0;
     let skipped = 0;
@@ -72,7 +80,7 @@ async function indexImages(): Promise<void> {
       try {
         // Check if image already exists
         const existing = await prisma.image.findFirst({
-          where: { gameId: game.id, slug },
+          where: { gameId, slug },
         });
 
         if (existing) {
@@ -84,26 +92,26 @@ async function indexImages(): Promise<void> {
         // Create image record
         await prisma.image.create({
           data: {
-            gameId: game.id,
+            gameId,
             slug,
             file: filename,
             prompt: `Image: ${slug}`, // Placeholder prompt
             tags: JSON.stringify(tags),
-            referencedIn: "images", // Could be more specific
+            referencedIn: "images",
           },
         });
 
-        console.log(`CREATED: ${filename} → slug: ${slug}`);
+        console.log(`CREATED: ${filename} -> slug: ${slug}`);
         created++;
       } catch (error) {
         console.error(`ERROR indexing ${filename}:`, error);
       }
     }
 
-    console.log(`\n Summary:`);
-    console.log(`   Created: ${created}`);
-    console.log(`   Skipped: ${skipped}`);
-    console.log(`   Total:   ${imageFiles.length}`);
+    console.log(`\nSummary:`);
+    console.log(`  Created: ${created}`);
+    console.log(`  Skipped: ${skipped}`);
+    console.log(`  Total:   ${imageFiles.length}`);
 
     await prisma.$disconnect();
     console.log(`\nDone!`);

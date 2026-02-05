@@ -62,7 +62,7 @@ export async function saveMessages(
 export async function loadConversation(
   id: string,
   userId: string,
-): Promise<{ id: string; messages: UIMessage[] } | null> {
+): Promise<{ id: string; gameId: string; messages: UIMessage[] } | null> {
   const conversation = await prisma.conversation.findFirst({
     where: { id, userId },
     include: {
@@ -86,7 +86,7 @@ export async function loadConversation(
     }
   });
 
-  return { id: conversation.id, messages };
+  return { id: conversation.id, gameId: conversation.gameId, messages };
 }
 
 export function extractImagesFromMessages(messages: UIMessage[]): string[] {

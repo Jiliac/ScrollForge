@@ -13,24 +13,45 @@ type GameFile = {
   content: string;
 };
 
-export function GameFilesList({ refreshKey }: { refreshKey?: number }) {
+export function GameFilesList({
+  refreshKey,
+  gameId,
+}: {
+  refreshKey?: number;
+  gameId: string;
+}) {
   const [files, setFiles] = useState<GameFile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
-    fetch("/api/game-files")
-      .then((res) => res.json())
+    fetch(`/api/game-files?gameId=${encodeURIComponent(gameId)}`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Request failed");
+        return res.json();
+      })
       .then((data) => {
         setFiles(data.files || []);
+        setError(false);
         setLoading(false);
       })
-      .catch(() => setLoading(false));
-  }, [refreshKey]);
+      .catch((err) => {
+        console.error("Failed to load game files:", err);
+        setError(true);
+        setLoading(false);
+      });
+  }, [refreshKey, gameId]);
 
   if (loading) {
     return (
       <div className="text-xs text-muted-foreground">Loading files...</div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-xs text-destructive">Failed to load game files</div>
     );
   }
 
