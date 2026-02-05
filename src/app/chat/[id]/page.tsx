@@ -4,6 +4,7 @@ import {
   extractImagesFromMessages,
 } from "@/lib/conversations";
 import { requireUserId } from "@/lib/auth";
+import { getRecentImageUrls } from "@/lib/image-index";
 import { ChatPageClient } from "./client";
 
 type Props = {
@@ -19,7 +20,12 @@ export default async function ChatPage({ params }: Props) {
     notFound();
   }
 
-  const initialImages = extractImagesFromMessages(conversation.messages);
+  const [messageImages, gameImageUrls] = await Promise.all([
+    Promise.resolve(extractImagesFromMessages(conversation.messages)),
+    getRecentImageUrls(conversation.gameId),
+  ]);
+
+  const initialImages = [...new Set([...gameImageUrls, ...messageImages])];
 
   return (
     <ChatPageClient

@@ -79,6 +79,24 @@ export async function getImageUrlBySlug(
   return getStorageUrl(image.file);
 }
 
+/**
+ * Return public URLs for the most recent game images.
+ */
+export async function getRecentImageUrls(
+  gameId: string,
+  limit = 20,
+): Promise<string[]> {
+  const images = await prisma.image.findMany({
+    where: { gameId },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+    select: { file: true },
+  });
+  return images
+    .map((img) => (img.file ? getStorageUrl(img.file) : null))
+    .filter((url): url is string => url !== null);
+}
+
 export async function searchImages(
   gameId: string,
   query: string,

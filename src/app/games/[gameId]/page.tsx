@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { requireGameAccess } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { extractImagesFromMessages } from "@/lib/conversations";
+import { getRecentImageUrls } from "@/lib/image-index";
 import type { UIMessage } from "ai";
 import { GameDashboardClient } from "./client";
 
@@ -42,10 +43,6 @@ export default async function GamePage({ params }: Props) {
           },
         },
       },
-      images: {
-        orderBy: { createdAt: "desc" },
-        take: 20,
-      },
     },
   });
 
@@ -71,18 +68,9 @@ export default async function GamePage({ params }: Props) {
   );
   const recentImages = extractImagesFromMessages(allMessages);
 
-  // Also include direct image URLs from Image records
-  const imageUrls = game.images
-    .map((img) => {
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-      if (supabaseUrl && img.file) {
-        return `${supabaseUrl}/storage/v1/object/public/game-images/${img.file}`;
-      }
-      return null;
-    })
-    .filter((url): url is string => url !== null);
+  const gameImageUrls = await getRecentImageUrls(gameId);
 
-  const allImages = [...new Set([...imageUrls, ...recentImages])];
+  const allImages = [...new Set([...gameImageUrls, ...recentImages])];
 
   const recentConversations = game.conversations.map((conv) => ({
     id: conv.id,
