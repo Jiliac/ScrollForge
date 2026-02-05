@@ -80,16 +80,22 @@ export async function requireGameAccess(gameId: string): Promise<string> {
 }
 
 /**
- * Check game access without calling notFound(). For use in API routes
- * where we want to return a JSON error response instead.
+ * Check game access without calling notFound() or redirect().
+ * For use in API routes where we want to return JSON error responses.
+ * Returns userId if authenticated and owns the game, null otherwise.
  */
 export async function checkGameAccess(gameId: string): Promise<string | null> {
-  const userId = await requireUserId();
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return null;
 
   const game = await prisma.game.findFirst({
-    where: { id: gameId, userId },
+    where: { id: gameId, userId: user.id },
     select: { id: true },
   });
 
-  return game ? userId : null;
+  return game ? user.id : null;
 }

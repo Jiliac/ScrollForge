@@ -225,7 +225,7 @@ export async function executePlayStream(
         console.error("Archivist failed:", error);
         writer.write({
           type: "data-agent-progress",
-          data: { agent: "archivist", status: "completed" },
+          data: { agent: "archivist", status: "failed" },
         });
       }
     }

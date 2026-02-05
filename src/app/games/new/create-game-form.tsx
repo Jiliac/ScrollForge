@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { isRedirectError } from "next/dist/client/components/redirect-error";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { createGameAction } from "./actions";
@@ -27,6 +28,7 @@ export function CreateGameForm() {
     try {
       await createGameAction(formData);
     } catch (err) {
+      if (isRedirectError(err)) throw err;
       setError(err instanceof Error ? err.message : "Failed to create game");
       setSubmitting(false);
     }

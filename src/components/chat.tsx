@@ -119,7 +119,7 @@ export function ChatSection({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ messages }),
           });
-          // Only set this on home page - signals save is done for redirect
+          // Only set this on game dashboard - signals save is done for redirect
           if (pathname.startsWith("/games/")) setHasSavedInitial(true);
         } catch (err) {
           console.error("Failed to save messages:", err);
